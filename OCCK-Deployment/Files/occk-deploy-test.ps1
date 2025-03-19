@@ -1,5 +1,5 @@
 # Start logging stuff to a file
-$logFile = Join-Path $PSScriptRoot "LOG.log"
+$logFile = Join-Path $PSScriptRoot "output_log.txt"
 Start-Transcript -Path $logFile -Append
 
 # Function to read our INI file into a hashtable

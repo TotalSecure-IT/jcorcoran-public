@@ -1,6 +1,6 @@
 # Define GitHub raw URLs (replace with your actual GitHub repo URLs)
-$GITHUB_RAW_URL_BAT = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/OCCK-Deployment/Files/Occk-Teploy-Test.bat"
-$GITHUB_RAW_URL_PS1 = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/OCCK-Deployment/Files/Occk-Deploy-Test.ps1"
+$GITHUB_RAW_URL_BAT = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/OCCK-Deployment/Files/occk-deploy-test.bat"
+$GITHUB_RAW_URL_PS1 = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/OCCK-Deployment/Files/occk-deploy-test.ps1"
 
 # Define local file paths
 $SCRIPT_FOLDER = "$PSScriptRoot"

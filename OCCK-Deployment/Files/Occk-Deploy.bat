@@ -2,13 +2,13 @@
 REM
 if exist "C:\Program Files\PowerShell\7\pwsh.exe" (
     echo PowerShell 7 detected. Launching script directly...
-    "C:\Program Files\PowerShell\7\pwsh.exe" -ExecutionPolicy Bypass -File "C:\Occk-Onboarding-Script\Files\Occk-Deploy.ps1"
+    "C:\Program Files\PowerShell\7\pwsh.exe" -ExecutionPolicy Bypass -File "C:\OCCK-Deployment\Files\Occk-Deploy.ps1"
     exit /b
 )
 
 REM
 echo PowerShell 7 not detected. Running script with PowerShell 5...
-powershell.exe -ExecutionPolicy Bypass -File "C:\Occk-Onboarding-Script\Files\Occk-Deploy.ps1"
+powershell.exe -ExecutionPolicy Bypass -File "C:\OCCK-Deployment\Files\Occk-Deploy.ps1"
 
 REM
 :WaitForPS7
@@ -19,4 +19,4 @@ goto WaitForPS7
 :Relaunch
 echo PowerShell 7 is now installed.
 echo Relaunching script using PowerShell 7...
-"C:\Program Files\PowerShell\7\pwsh.exe" -ExecutionPolicy Bypass -File "C:\Occk-Onboarding-Script\Files\Occk-Deploy.ps1"
+"C:\Program Files\PowerShell\7\pwsh.exe" -ExecutionPolicy Bypass -File "C:\OCCK-Deployment\Files\Occk-Deploy.ps1"

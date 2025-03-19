@@ -1,8 +1,8 @@
-# --- Begin Transcript for Verbose Logging ---
+# Start logging stuff to a file
 $logFile = Join-Path $PSScriptRoot "LOG.log"
 Start-Transcript -Path $logFile -Append
 
-# Helper: Convert INI file to a Hashtable
+# Function to read our INI file into a hashtable
 function Convert-IniToHashtable {
     param(
         [Parameter(Mandatory)]
@@ -30,19 +30,19 @@ function Convert-IniToHashtable {
     return $ini
 }
 
-# Load configuration from config.ini (ensure this file is secured and not published)
+# Load our config file (make sure this file is safe and not public)
 $configFile = Join-Path $PSScriptRoot "config.ini"
 if (-not (Test-Path $configFile)) {
-    Write-Error "Configuration file not found. Exiting."
+    Write-Error "Config file not found. Bye."
     exit 1
 }
 $config = Convert-IniToHashtable -Path $configFile
 
-# Assign general variables from configuration
+# Set some basic vars from the config
 $vpnName       = $config.General.vpnName
 $serverAddress = $config.General.serverAddress
 
-# Assign credential variables from configuration
+# Get credentials and other settings from the config
 $psk               = $config.Credentials.vpnPsk
 $vpnUsername       = $config.Credentials.vpnUsername
 $vpnPassword       = $config.Credentials.vpnPassword
@@ -51,7 +51,7 @@ $domainJoinPassword= $config.Credentials.domainJoinPassword
 $localAdminUser    = $config.Credentials.localAdminUser
 $localAdminPassword= $config.Credentials.localAdminPassword
 
-# Build the appsToInstall array from the [Apps] section.
+# Build the list of apps to install from the INI file
 $appCount = [int]$config.Apps.Count
 $appsToInstall = @()
 for ($i = 1; $i -le $appCount; $i++) {
@@ -68,73 +68,70 @@ for ($i = 1; $i -le $appCount; $i++) {
     $appsToInstall += $app
 }
 
-# Determine if running in PowerShell 7
+# Check if we're on PowerShell 7
 $inPS7 = $PSVersionTable.PSVersion.Major -ge 7
 
 if (-not $inPS7) {
-    # --- Relaunch with ExecutionPolicy Bypass if needed ---
+    # Relaunch with proper execution policy if needed
     if ((Get-ExecutionPolicy -Scope Process) -ne "Bypass") {
-        Write-Host "Current process execution policy is not Bypass. Relaunching with ExecutionPolicy Bypass..." -Verbose
+        Write-Host "Not running with Bypass exec policy. Relaunching..."
         Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
         exit
     }
 
-    # --- Relaunch as Admin if not already ---
+    # If not admin, restart as admin
     if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)) {
-        Write-Warning "This script must be run as an administrator. Relaunching..." -Verbose
+        Write-Warning "Need admin rights. Relaunching..."
         Start-Process -FilePath "powershell" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
         exit
     }
 
-    # --- Check for PowerShell 7+ ---
+    # Try to switch to PS7 if it exists
     $pwshPath = "C:\Program Files\PowerShell\7\pwsh.exe"
     if (Test-Path $pwshPath) {
-        Write-Host "PowerShell 7 detected at $pwshPath. Relaunching using PowerShell 7..." -Verbose
+        Write-Host "Found PS7. Switching over..."
         Start-Process -FilePath $pwshPath -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" 
         exit
     }
     else {
-        Write-Host "PowerShell 7 or later is required. Detected version: $($PSVersionTable.PSVersion)" -ForegroundColor Yellow
+        Write-Host "PS7 is required. Detected version: $($PSVersionTable.PSVersion)" -ForegroundColor Yellow
         if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-            Write-Error "Winget is not available. Please install winget or update PowerShell manually."
+            Write-Error "Winget not found. Please update PS manually."
             Read-Host "Press Enter to exit..."
             exit 1
         }
-        Write-Host "Attempting to install PowerShell 7 silently via winget..." -ForegroundColor Cyan
+        Write-Host "Trying to install PS7 via winget..." -ForegroundColor Cyan
         winget install --id Microsoft.PowerShell --source winget --silent --accept-package-agreements --accept-source-agreements --force --verbose --nowarn --disable-interactivity
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "PowerShell 7 installation initiated successfully. Please restart this script in the new PowerShell 7 session." -ForegroundColor Green
+            Write-Host "PS7 installation started. Please restart this script in PS7." -ForegroundColor Green
         }
         else {
-            Write-Error "Failed to install PowerShell 7 using winget. Please install it manually."
+            Write-Error "PS7 install failed. Do it manually."
         }
         exit 1
     }
 }
 
-# Set UTF8 encoding for proper character handling
+# Set UTF8 so we don't get weird characters
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-##############################################
-# NEW: Determine Local IP and Set $skipVPN   #
-##############################################
+# Figure out local IP so we know if VPN stuff should run
 $skipVPN = $false
 try {
-    # Get the first non-loopback IPv4 address
     $localIPObj = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -ne "127.0.0.1" } | Select-Object -First 1
     if ($localIPObj -and $localIPObj.IPAddress -match "^10\.1\.(\d{1,3})\.\d+$") {
          $octet = [int]$Matches[1]
          if ($octet -ge 0 -and $octet -le 20) {
-             Write-Verbose "Local IP $($localIPObj.IPAddress) is within 10.1.0.0-10.1.20.0. Skipping VPN functions."
+             Write-Verbose "Local IP in range, so skipping VPN stuff."
              $skipVPN = $true
          }
     }
 }
 catch {
-    Write-Verbose "Could not determine local IP address. Proceeding with VPN functions."
+    Write-Verbose "Could not get local IP. Just doing VPN stuff."
 }
 
-# --- Helper: Render Banner ---
+# --- Basic functions below ---
 function Render-Banner {
     Set-CursorPosition -Row 1 -Column 1
     try {
@@ -148,7 +145,7 @@ function Render-Banner {
             }
         }
         else {
-            throw "Banner file not found."
+            throw "No banner file."
         }
     }
     catch {
@@ -156,7 +153,6 @@ function Render-Banner {
     }
 }
 
-# --- Helper: ANSI Cursor Position ---
 function Set-CursorPosition {
     param(
         [int]$Row,
@@ -167,7 +163,6 @@ function Set-CursorPosition {
     Write-Host -NoNewLine $ansiCode
 }
 
-# --- Helper: Write Cleared Line ---
 function Write-ClearedLine {
     param(
         [string]$Text,
@@ -184,7 +179,6 @@ function Write-ClearedLine {
     }
 }
 
-# --- Helper: Render App/Task/Update Status Table ---
 function Render-AppStatus {
     param(
         [hashtable]$StatusTable,
@@ -210,66 +204,67 @@ function Render-AppStatus {
     }
 }
 
-#########################
-# WINDOWS UPDATES TASK  #
-#########################
+# --- Windows Updates Task ---
 $updateTableStartLine = 8
 $updateStatus = @{ "Windows Updates" = "Pending" }
 Clear-Host
-Write-Host "Executing Windows Updates..." -ForegroundColor Cyan
+Write-Host "Doing Windows Updates..." -ForegroundColor Cyan
 Render-AppStatus -StatusTable $updateStatus -Keys $updateStatus.Keys -startLine $updateTableStartLine
 $updateTableHeight = 2 + $updateStatus.Count
 $detailedUpdateRow = $updateTableStartLine + $updateTableHeight + 1
 try {
     $updateStatus["Windows Updates"] = "Installing"
     Render-AppStatus -StatusTable $updateStatus -Keys $updateStatus.Keys -startLine $updateTableStartLine
+
     Set-CursorPosition -Row $detailedUpdateRow -Column 1
-    Write-ClearedLine -Text "Starting Windows Update scan..." -Width 80 -ForegroundColor Cyan
-    Write-Verbose "Initiating Windows Update scan..."
+    Write-ClearedLine -Text "Starting update scan..." -Width 80 -ForegroundColor Cyan
+    Write-Verbose "Starting update scan..."
     UsoClient StartScan
     Start-Sleep -Seconds 10
+
     Set-CursorPosition -Row $detailedUpdateRow -Column 1
-    Write-ClearedLine -Text "Starting Windows Update download..." -Width 80 -ForegroundColor Cyan
-    Write-Verbose "Initiating Windows Update download..."
+    Write-ClearedLine -Text "Starting update download..." -Width 80 -ForegroundColor Cyan
+    Write-Verbose "Starting update download..."
     UsoClient StartDownload
     Start-Sleep -Seconds 10
+
     Set-CursorPosition -Row $detailedUpdateRow -Column 1
-    Write-ClearedLine -Text "Starting Windows Update install..." -Width 80 -ForegroundColor Cyan
-    Write-Verbose "Initiating Windows Update install..."
+    Write-ClearedLine -Text "Starting update install..." -Width 80 -ForegroundColor Cyan
+    Write-Verbose "Starting update install..."
     UsoClient StartInstall
     Start-Sleep -Seconds 10
+
     Set-CursorPosition -Row $detailedUpdateRow -Column 1
-    Write-ClearedLine -Text "Suppressing automatic reboot post updates..." -Width 80 -ForegroundColor Cyan
-    Write-Verbose "Suppressing automatic reboot after updates..."
+    Write-ClearedLine -Text "Disabling auto reboot..." -Width 80 -ForegroundColor Cyan
+    Write-Verbose "Disabling auto reboot..."
     $auKeyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU"
     if (-not (Test-Path $auKeyPath)) {
         New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" -Name "AU" -Force | Out-Null
     }
     Set-ItemProperty -Path $auKeyPath -Name NoAutoRebootWithLoggedOnUsers -Value 1 -Type DWord
+
     $updateStatus["Windows Updates"] = "Success"
     Render-AppStatus -StatusTable $updateStatus -Keys $updateStatus.Keys -startLine $updateTableStartLine
-    Write-Host "Windows Updates process completed." -ForegroundColor Green
+    Write-Host "Updates done." -ForegroundColor Green
 } catch {
     $updateStatus["Windows Updates"] = "Failed"
     Render-AppStatus -StatusTable $updateStatus -Keys $updateStatus.Keys -startLine $updateTableStartLine
-    Write-Host "Windows Updates process encountered an error: $_" -ForegroundColor Red
+    Write-Host "Update error: $_" -ForegroundColor Red
 }
 
-#########################
-# TASK FUNCTIONS BELOW  #
-#########################
+# --- Task Functions Section ---
 
 function Repair-VpnServices {
-    Write-Verbose "Repairing VPN services: RasMan, IKEEXT..."
+    Write-Verbose "Restarting VPN services..."
     $services = @("RasMan", "IKEEXT")
     foreach ($svc in $services) {
         try {
-            Write-Verbose "Restarting service: $svc"
+            Write-Verbose "Restarting $svc..."
             Restart-Service -Name $svc -Force -ErrorAction Stop
-            Write-Verbose "Service $svc restarted successfully."
+            Write-Verbose "$svc restarted."
         }
         catch {
-            Write-Verbose "Failed to restart service $svc $($_.Exception.Message)"
+            Write-Verbose "Could not restart $svc: $($_.Exception.Message)"
         }
     }
 }
@@ -284,16 +279,16 @@ function Setup-VpnConnection {
         [string]$psk
     )
     if ($skipVPN) {
-        Write-Verbose "Skipping Setup-VpnConnection because VPN functions are disabled."
+        Write-Verbose "Skipping VPN setup."
         return "Skipped"
     }
-    Write-Verbose "Setting up VPN Connection: $name with server $address"
+    Write-Verbose "Setting up VPN $name for server $address"
     $existingVpn = Get-VpnConnection -Name $name -ErrorAction SilentlyContinue
     if ($existingVpn) {
-        Write-Verbose "VPN connection $name already exists. Skipping setup."
+        Write-Verbose "VPN $name exists. Skipping."
         return "Skipped"
     }
-    Write-Verbose "Adding VPN connection: $name"
+    Write-Verbose "Adding VPN $name"
     Add-VpnConnection -Name $name `
                       -ServerAddress $address `
                       -TunnelType L2tp `
@@ -301,8 +296,8 @@ function Setup-VpnConnection {
                       -L2tpPsk $psk `
                       -Force `
                       -RememberCredential
-    Write-Verbose "VPN connection $name added successfully."
-    Write-Verbose "Configuring IPsec settings for VPN connection: $name"
+    Write-Verbose "VPN $name added."
+    Write-Verbose "Setting IPsec for VPN $name"
     Set-VpnConnectionIPsecConfiguration -ConnectionName $name `
         -AuthenticationTransformConstants SHA1 `
         -CipherTransformConstants DES3 `
@@ -311,34 +306,34 @@ function Setup-VpnConnection {
         -DHGroup Group2 `
         -PfsGroup None `
         -Force
-    Write-Verbose "VPN connection $name configured successfully."
+    Write-Verbose "VPN $name configured."
     return "Success"
 }
 
 function Join-Domain {
     $domain = "ad.occk.com"
-    Write-Verbose "Checking current domain..."
+    Write-Verbose "Checking domain membership..."
     $currentDomain = (Get-WmiObject Win32_ComputerSystem).Domain
     if ($currentDomain -and $currentDomain -ieq $domain) {
-        Write-Verbose "Computer is already joined to $domain. Skipping domain join."
+        Write-Verbose "Already in $domain. Skipping."
         return "Skipped"
     }
-    Write-Verbose "Attempting to join domain: $domain"
+    Write-Verbose "Joining $domain..."
     try {
         $pass = $domainJoinPassword | ConvertTo-SecureString -AsPlainText -Force  
         $user = "$domain\$domainJoinUser"
         $credential = New-Object System.Management.Automation.PSCredential($user, $pass)
         Add-Computer -DomainName $domain -Credential $credential -ErrorAction Stop
-        Write-Verbose "Successfully joined domain: $domain"
+        Write-Verbose "Joined $domain."
         return "Success"
     } catch {
-        Write-Host "Error joining domain: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Domain join error: $($_.Exception.Message)" -ForegroundColor Red
         return "Failed"
     }
 }
 
 function Configure-hibernation {
-    Write-Verbose "Checking hibernation state..."
+    Write-Verbose "Disabling hibernation..."
     try {
         POWERCFG /X -monitor-timeout-ac 0
         POWERCFG /X -monitor-timeout-dc 0
@@ -349,33 +344,33 @@ function Configure-hibernation {
         POWERCFG /X -hibernate-timeout-ac 0
         POWERCFG /X -hibernate-timeout-dc 0
         POWERCFG /H OFF
-        Write-Verbose "Power settings updated and hibernation disabled."
+        Write-Verbose "Hibernation off."
         return "Success"
     } catch {
-        Write-Host "Failed to update power settings: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Hibernation error: $($_.Exception.Message)" -ForegroundColor Red
         return "Failed"
     }
 }
 
 function Teams-Personal {
-    Write-Verbose "Checking if Microsoft Teams (Personal) is installed..."
+    Write-Verbose "Checking Teams installation..."
     $teams = Get-AppxPackage -Name MicrosoftTeams -AllUsers -ErrorAction SilentlyContinue
     if (-not $teams) {
-        Write-Verbose "Microsoft Teams (Personal) is not installed. Skipping removal."
+        Write-Verbose "Teams not found. Skipping."
         return "Skipped"
     }
     try {
         Get-AppxPackage -Name MicrosoftTeams -AllUsers | Remove-AppxPackage -AllUsers -ErrorAction Stop
-        Write-Verbose "Microsoft Teams (Personal) removed successfully."
+        Write-Verbose "Teams removed."
         return "Success"
     } catch {
-        Write-Host "Error removing Microsoft Teams (Personal): $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Teams removal error: $($_.Exception.Message)" -ForegroundColor Red
         return "Failed"
     }
 }
 
 function Configure-Hostfile {
-    Write-Verbose "Updating hosts file with required entries."
+    Write-Verbose "Updating hosts file..."
     try {
         $file = "C:\Windows\System32\drivers\etc\hosts"
         $entriesToAdd = @(
@@ -386,69 +381,67 @@ function Configure-Hostfile {
         $skippedCount = 0
         foreach ($entry in $entriesToAdd) {
             if ($existingContent -contains $entry) {
-                Write-Verbose "Entry already exists: $entry. Skipping."
+                Write-Verbose "Entry '$entry' exists. Skipping."
                 $skippedCount++
             }
             else {
-                Write-Verbose "Adding entry: $entry"
+                Write-Verbose "Adding '$entry'"
                 Add-Content -Path $file -Value $entry
             }
         }
         if ($skippedCount -eq $entriesToAdd.Count) {
             return "Skipped"
         }
-        Write-Verbose "Hosts file update complete."
+        Write-Verbose "Hosts file updated."
         return "Success"
     }
     catch {
-        Write-Host "Error updating hosts file: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Hosts file error: $($_.Exception.Message)" -ForegroundColor Red
         return "Failed"
     }
 }
 
 function Create-OCCKADMIN {
-    Write-Verbose "Checking if local user '$localAdminUser' exists..."
+    Write-Verbose "Checking local admin user '$localAdminUser'..."
     try {
         $user = Get-LocalUser -Name $localAdminUser -ErrorAction SilentlyContinue
         if ($user) {
-            Write-Verbose "Local user '$localAdminUser' already exists. Skipping creation."
+            Write-Verbose "User '$localAdminUser' exists. Skipping."
             return "Skipped"
         }
     } catch {
-        # Fallback to net user if needed.
+        # Fallback if needed.
     }
-    Write-Verbose "Attempting to create local user '$localAdminUser' and add to Administrators group."
+    Write-Verbose "Creating local admin user '$localAdminUser'..."
     try {
         net user $localAdminUser $localAdminPassword /add /expires:never
         net localgroup administrators $localAdminUser /add
-        Write-Verbose "Local user '$localAdminUser' created and added to Administrators group."
+        Write-Verbose "User '$localAdminUser' created."
         return "Success"
     } catch {
-        Write-Host "Error creating local user or user already exists: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Local admin error: $($_.Exception.Message)" -ForegroundColor Red
         return "Failed"
     }
 }
 
 function Copy-Links {
-    Write-Verbose "Checking if shortcuts already exist on Public Desktop..."
+    Write-Verbose "Checking for desktop shortcuts..."
     $destination = "C:\users\public\desktop"
     if (Test-Path (Join-Path $destination "C:\Users\Public\Desktop\Ascentis.url")) {
-        Write-Verbose "Shortcuts already present on Public Desktop. Skipping copy."
+        Write-Verbose "Shortcuts exist. Skipping."
         return "Skipped"
     }
     try {
         Copy-Item -Path "C:\Occk-Onboarding-Script\Files\Links\*" -Destination $destination -Force
-        Write-Verbose "Shortcuts copied successfully to Public Desktop."
+        Write-Verbose "Shortcuts copied."
         return "Success"
     } catch {
-        Write-Host "Error copying shortcuts to Public Desktop: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Copy shortcuts error: $($_.Exception.Message)" -ForegroundColor Red
         return "Failed"
     }
 }
 
-###############################
-# APPLICATION INSTALLATION    #
-###############################
+# --- Install Apps Section ---
 $appStatus = @{}
 foreach ($app in $appsToInstall) {
     $appStatus[$app.Name] = "Pending"
@@ -456,17 +449,16 @@ foreach ($app in $appsToInstall) {
 
 $tableStartLine = 8
 Clear-Host
-Write-Host "Installing applications..." -ForegroundColor Cyan
+Write-Host "Installing apps..." -ForegroundColor Cyan
 Render-AppStatus -StatusTable $appStatus -Keys $appStatus.Keys -startLine $tableStartLine
 
 $tableHeight = 2 + $appsToInstall.Count
 $detailedLineRow = $tableStartLine + $tableHeight + 1
 
 foreach ($app in $appsToInstall) {
-    # For Sophos, perform a custom check
     if ($app.Name -eq "Sophos") {
         if ((Test-Path "C:\Program Files\Sophos\Endpoint Defense\SEDService.exe") -or (Get-Service -Name "Sophos Endpoint Defense Service" -ErrorAction SilentlyContinue)) {
-            Write-Verbose "$($app.Name) is already installed. Skipping."
+            Write-Verbose "$($app.Name) already installed. Skipping."
             $appStatus[$app.Name] = "Skipped"
             Render-AppStatus -StatusTable $appStatus -Keys $appStatus.Keys -startLine $tableStartLine
             continue
@@ -474,7 +466,7 @@ foreach ($app in $appsToInstall) {
     }
     else {
         if (Test-Path $app.CheckPath) {
-            Write-Verbose "$($app.Name) is already installed. Skipping."
+            Write-Verbose "$($app.Name) already installed. Skipping."
             $appStatus[$app.Name] = "Skipped"
             Render-AppStatus -StatusTable $appStatus -Keys $appStatus.Keys -startLine $tableStartLine
             continue
@@ -486,17 +478,17 @@ foreach ($app in $appsToInstall) {
     Write-ClearedLine -Text ("Installing {0} from {1}" -f $app.Name, $app.Source) -Width 80 -ForegroundColor Cyan
     try {
         if (-not (Test-Path $app.Source)) {
-            throw "Source file not found: $($app.Source)"
+            throw "Source not found: $($app.Source)"
         }
-        Write-Verbose "Starting installation of $($app.Name)..."
+        Write-Verbose "Installing $($app.Name)..."
         $process = Start-Process -FilePath $app.Source -ArgumentList $app.Args -Wait -PassThru -ErrorAction Stop
         if ($process.ExitCode -eq 0) {
             $appStatus[$app.Name] = "Success"
-            Write-Verbose "$($app.Name) installed successfully."
+            Write-Verbose "$($app.Name) installed."
         }
         else {
             $appStatus[$app.Name] = "Failed"
-            Write-Verbose "$($app.Name) installation failed with exit code $($process.ExitCode)."
+            Write-Verbose "$($app.Name) failed with exit code $($process.ExitCode)."
         }
     }
     catch {
@@ -510,14 +502,12 @@ foreach ($app in $appsToInstall) {
 
 Start-Sleep -Seconds 3
 
-#################################
-# ADDITIONAL TASK EXECUTION     #
-#################################
+# --- Additional Tasks Section ---
 $additionalTasks = @(
     @{ Name = "VPN Connection Setup"; Action = { Setup-VpnConnection -name $vpnName -address $serverAddress -psk $psk } },
     @{ Name = "VPN Split Tunneling"; Action = { 
             if ($skipVPN) { 
-                Write-Verbose "Skipping VPN Split Tunneling."; 
+                Write-Verbose "Skipping VPN split tunneling." 
                 return "Skipped" 
             } else { 
                 Set-VpnConnection -Name $vpnName -SplitTunneling $true -Force; 
@@ -527,7 +517,7 @@ $additionalTasks = @(
     },
     @{ Name = "VPN Connect"; Action = { 
             if ($skipVPN) { 
-                Write-Verbose "Skipping VPN Connect."; 
+                Write-Verbose "Skipping VPN connect." 
                 return "Skipped" 
             }
             $vpn = Get-VpnConnection -Name $vpnName
@@ -535,13 +525,13 @@ $additionalTasks = @(
                 Write-Verbose "VPN already connected. Skipping."
                 return "Skipped"
             }
-            Write-Verbose "Attempting VPN connect..."
+            Write-Verbose "Trying to connect VPN..."
             $maxAttempts = 5
             $attempt = 0
             $success = $false
             while ($attempt -lt $maxAttempts -and -not $success) {
                 $attempt++
-                Write-Verbose "VPN Connect attempt $attempt"
+                Write-Verbose "VPN attempt $attempt"
                 try {
                     $rasdialOutput = rasdial $vpnName $vpnUsername $vpnPassword 2>&1
                     Start-Sleep -Seconds 5
@@ -551,21 +541,21 @@ $additionalTasks = @(
                     }
                     else {
                         if ($rasdialOutput -match "Remote server did not respond") {
-                            Write-Verbose "Remote server did not respond, retrying..."
+                            Write-Verbose "Server did not respond, trying again..."
                         } else {
-                            throw "VPN failed to connect: $rasdialOutput"
+                            throw "VPN failed: $rasdialOutput"
                         }
                     }
                 } catch {
                     if ($_ -match "Remote server did not respond") {
-                        Write-Verbose "Remote server did not respond, retrying..."
+                        Write-Verbose "Server did not respond, trying again..."
                     } else {
                         throw $_
                     }
                 }
             }
             if (-not $success) {
-                throw "VPN failed to connect after $maxAttempts attempts."
+                throw "VPN did not connect after $maxAttempts tries."
             }
             return "Success"
         } 
@@ -579,7 +569,7 @@ $additionalTasks = @(
 )
 
 if ($skipVPN) {
-    Write-Verbose "Removing VPN tasks from additional tasks due to local IP settings."
+    Write-Verbose "Removing VPN tasks because local IP tells us so."
     $additionalTasks = $additionalTasks | Where-Object { $_.Name -notmatch "VPN" }
 }
 
@@ -589,7 +579,7 @@ foreach ($task in $additionalTasks) {
 }
 
 Clear-Host
-Write-Host "Executing additional tasks..." -ForegroundColor Cyan
+Write-Host "Running extra tasks..." -ForegroundColor Cyan
 Render-AppStatus -StatusTable $taskStatus -Keys $taskStatus.Keys -startLine $tableStartLine
 
 $tableHeight = 2 + $additionalTasks.Count
@@ -601,7 +591,7 @@ foreach ($task in $additionalTasks) {
     Set-CursorPosition -Row $detailedLineRow -Column 1
     Write-ClearedLine -Text ("Executing: {0}" -f $task.Name) -Width 80 -ForegroundColor Cyan
     try {
-        Write-Verbose "Executing task: $($task.Name)..."
+        Write-Verbose "Running task $($task.Name)..."
         $result = $task.Action.Invoke() | Out-Null
         if ($result) {
             $taskStatus[$task.Name] = $result
@@ -609,13 +599,13 @@ foreach ($task in $additionalTasks) {
         else {
             $taskStatus[$task.Name] = "Success"
         }
-        Write-Verbose "Task '$($task.Name)' completed with status $($taskStatus[$task.Name])."
+        Write-Verbose "Task '$($task.Name)' finished as $($taskStatus[$task.Name])."
     }
     catch {
         $taskStatus[$task.Name] = "Failed"
         Set-CursorPosition -Row $detailedLineRow -Column 1
         Write-ClearedLine -Text ("Error in {0}: {1}" -f $task.Name, $_) -Width 80 -ForegroundColor Red
-        Write-Verbose "Task '$($task.Name)' failed: $_"
+        Write-Verbose "Task '$($task.Name)' error: $_"
     }
     Render-AppStatus -StatusTable $taskStatus -Keys $taskStatus.Keys -startLine $tableStartLine
 }
@@ -623,5 +613,5 @@ foreach ($task in $additionalTasks) {
 Set-CursorPosition -Row ($detailedLineRow + 2) -Column 1
 Read-Host "Press Enter to exit..."
 
-# --- End Transcript ---
+# End logging
 Stop-Transcript

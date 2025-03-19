@@ -1,11 +1,11 @@
 # Define GitHub raw URLs (replace with your actual GitHub repo URLs)
-$GITHUB_RAW_URL_BAT = "https://raw.githubusercontent.com/bp0x00q/OCCK-Deployment/refs/heads/main/Occk-Deploy.bat"
-$GITHUB_RAW_URL_PS1 = "https://raw.githubusercontent.com/bp0x00q/OCCK-Deployment/refs/heads/main/Occk-Deploy.ps1"
+$GITHUB_RAW_URL_BAT = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/OCCK-Deployment/Files/occk-deploy-test.bat"
+$GITHUB_RAW_URL_PS1 = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/OCCK-Deployment/Files/occk-deploy-test.ps1"
 
 # Define local file paths
 $SCRIPT_FOLDER = "$PSScriptRoot"
-$LOCAL_BAT = "$SCRIPT_FOLDER\Occk-Deploy.bat"
-$LOCAL_PS1 = "$SCRIPT_FOLDER\Files\Occk-Deploy.ps1"
+$LOCAL_BAT = "$SCRIPT_FOLDER\Files\Occk-Deploy-Test.bat"
+$LOCAL_PS1 = "$SCRIPT_FOLDER\Files\Occk-Deploy-Test.ps1"
 
 # Function to download and replace files
 Function Update-File {

@@ -4,8 +4,8 @@ $GITHUB_RAW_URL_PS1 = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcora
 
 # Define local file paths
 $SCRIPT_FOLDER = "$PSScriptRoot"
-$LOCAL_BAT = "$SCRIPT_FOLDER\Files\Occk-Deploy-Test.bat"
-$LOCAL_PS1 = "$SCRIPT_FOLDER\Files\Occk-Deploy-Test.ps1"
+$LOCAL_BAT = "$SCRIPT_FOLDER\Occk-Deploy-Test.bat"
+$LOCAL_PS1 = "$SCRIPT_FOLDER\Occk-Deploy-Test.ps1"
 
 # Function to download and replace files
 Function Update-File {
@@ -30,5 +30,5 @@ Update-File -Url $GITHUB_RAW_URL_BAT -Destination $LOCAL_BAT
 Update-File -Url $GITHUB_RAW_URL_PS1 -Destination $LOCAL_PS1
 
 # Launch Occk-Deploy.bat
-Write-Host "Launching Occk-Deploy.bat..."
+Write-Host "Launching Occk-Deploy-Test.bat..."
 Start-Process -FilePath $LOCAL_BAT -NoNewWindow -Wait

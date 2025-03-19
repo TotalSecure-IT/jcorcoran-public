@@ -264,7 +264,7 @@ function Repair-VpnServices {
             Write-Verbose "$svc restarted."
         }
         catch {
-            Write-Verbose "Could not restart $svc: $($_.Exception.Message)"
+            Write-Verbose "Could not restart $svc $($_.Exception.Message)"
         }
     }
 }

@@ -432,7 +432,7 @@ function Copy-Links {
         return "Skipped"
     }
     try {
-        Copy-Item -Path "C:\Occk-Onboarding-Script\Files\Links\*" -Destination $destination -Force
+        Copy-Item -Path "C:\OCCK-Deployment\Files\Links\*" -Destination $destination -Force
         Write-Verbose "Shortcuts copied."
         return "Success"
     } catch {

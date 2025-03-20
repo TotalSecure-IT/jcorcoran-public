@@ -292,7 +292,6 @@ function Setup-VpnConnection {
     Add-VpnConnection -Name $name `
                       -ServerAddress $address `
                       -TunnelType L2tp `
-                      -AuthenticationMethod MSChapv2 `
                       -L2tpPsk $psk `
                       -Force `
                       -RememberCredential

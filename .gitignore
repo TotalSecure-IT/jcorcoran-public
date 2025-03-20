@@ -8,3 +8,5 @@ OCCK-Deployment/Installers/AcroRdrDC2300320284_en_US.exe
 OCCK-Deployment/Files/Occk-Deploy.ps1
 *.exe
 *.msi
+*.mst
+*.cab

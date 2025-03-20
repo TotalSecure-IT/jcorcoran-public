@@ -178,7 +178,7 @@ function Render-Banner {
         if (Test-Path $bannerFile) {
             $bannerLines = Get-Content $bannerFile -Encoding UTF8
             # You can now use color names or hex codes here:
-            $bannerColors = @("#F5F5DC", "#DEB887", "#E9967A", "#CD5C5C", "#FFD700", "Red", "#FFD700", "Red", "#8B0000")
+            $bannerColors = @("White", "#00FFFF", "Gray", "Yellow", "#FFD700", "Red", "#FFD700", "Red", "#8B0000")
             for ($i = 0; $i -lt $bannerLines.Count; $i++) {
                 $color = if ($i -lt $bannerColors.Count) { $bannerColors[$i] } else { "#8B0000" }
                 Write-ClearedLine -Text $bannerLines[$i] -Width 80 -ForegroundColor $color

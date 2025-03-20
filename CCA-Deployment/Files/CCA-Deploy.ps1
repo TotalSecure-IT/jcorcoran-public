@@ -133,7 +133,25 @@ catch {
 
 # --- Basic functions below ---
 
-# Updated Write-ClearedLine function that supports hex codes.
+# Returns the ANSI escape sequence for the foreground color given a 256-color index.
+function Get-AnsiForeground {
+    param(
+        [Parameter(Mandatory)]
+        [int]$Index
+    )
+    return "$([char]27)[38;5;${Index}m"
+}
+
+# Returns the ANSI escape sequence for the background color given a 256-color index.
+function Get-AnsiBackground {
+    param(
+        [Parameter(Mandatory)]
+        [int]$Index
+    )
+    return "$([char]27)[48;5;${Index}m"
+}
+
+# Updated Write-ClearedLine function that supports hex codes, numeric ANSI indices, and normal names.
 function Write-ClearedLine {
     param(
         [string]$Text,
@@ -142,18 +160,28 @@ function Write-ClearedLine {
     )
     $clearLine = "$([char]27)[2K"
     $padded = $Text.PadRight($Width)
-    if ($ForegroundColor -and $ForegroundColor -match "^#([0-9A-Fa-f]{6})$") {
-         # If color is hex, convert to RGB values.
-         $hex = $ForegroundColor.Substring(1)
-         $r = [Convert]::ToInt32($hex.Substring(0,2),16)
-         $g = [Convert]::ToInt32($hex.Substring(2,2),16)
-         $b = [Convert]::ToInt32($hex.Substring(4,2),16)
-         $ansiColor = "$([char]27)[38;2;${r};${g};${b}m"
-         $reset = "$([char]27)[0m"
-         Write-Host -NoNewLine "$clearLine$ansiColor$padded$reset"
-    }
-    elseif ($ForegroundColor) {
-         Write-Host -NoNewLine "$clearLine$padded" -ForegroundColor $ForegroundColor
+    if ($ForegroundColor) {
+        # Check if color is a hex code:
+        if ($ForegroundColor -match "^#([0-9A-Fa-f]{6})$") {
+            $hex = $ForegroundColor.Substring(1)
+            $r = [Convert]::ToInt32($hex.Substring(0,2),16)
+            $g = [Convert]::ToInt32($hex.Substring(2,2),16)
+            $b = [Convert]::ToInt32($hex.Substring(4,2),16)
+            $ansiColor = "$([char]27)[38;2;${r};${g};${b}m"
+            $reset = "$([char]27)[0m"
+            Write-Host -NoNewLine "$clearLine$ansiColor$padded$reset"
+        }
+        # Check if it's numeric (or a string that looks like a number)
+        elseif ([int]::TryParse($ForegroundColor, [ref]$null)) {
+            $num = [int]$ForegroundColor
+            $ansiColor = Get-AnsiForeground $num
+            $reset = "$([char]27)[0m"
+            Write-Host -NoNewLine "$clearLine$ansiColor$padded$reset"
+        }
+        else {
+            # Fall back to built-in color names.
+            Write-Host -NoNewLine "$clearLine$padded" -ForegroundColor $ForegroundColor
+        }
     }
     else {
          Write-Host -NoNewLine "$clearLine$padded"
@@ -177,10 +205,10 @@ function Render-Banner {
         $bannerFile = Join-Path $PSScriptRoot "banner.txt"
         if (Test-Path $bannerFile) {
             $bannerLines = Get-Content $bannerFile -Encoding UTF8
-            # You can now use color names or hex codes here:
-            $bannerColors = @("#006060", "#0F5555", "#1F4B4B", "#2E4040", "#3E3535", "#4D2B2B", "#5D2020", "#6C1515", "#7C0B0B", "#8B0000")
+            # Use the requested ANSI numeric indices for the banner:
+            $bannerColors = @("196", "124", "124", "88", "52", "52", "52", "52", "52", "52")
             for ($i = 0; $i -lt $bannerLines.Count; $i++) {
-                $color = if ($i -lt $bannerColors.Count) { $bannerColors[$i] } else { "#8B0000" }
+                $color = if ($i -lt $bannerColors.Count) { $bannerColors[$i] } else { "52" }
                 Write-ClearedLine -Text $bannerLines[$i] -Width 80 -ForegroundColor $color
             }
         }
@@ -386,7 +414,6 @@ function Teams-Personal {
 }
 
 <# We are not setting host entries at this time
-
 function Configure-Hostfile {
     Write-Verbose "Updating hosts file..."
     try {

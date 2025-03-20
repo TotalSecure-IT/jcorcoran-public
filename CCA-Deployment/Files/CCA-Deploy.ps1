@@ -43,13 +43,13 @@ $vpnName       = $config.General.vpnName
 $serverAddress = $config.General.serverAddress
 
 # Get credentials and other settings from the config
-$psk               = $config.Credentials.vpnPsk
-$vpnUsername       = $config.Credentials.vpnUsername
-$vpnPassword       = $config.Credentials.vpnPassword
-$domainJoinUser    = $config.Credentials.domainJoinUser
-$domainJoinPassword= $config.Credentials.domainJoinPassword
-$localAdminUser    = $config.Credentials.localAdminUser
-$localAdminPassword= $config.Credentials.localAdminPassword
+$psk                = $config.Credentials.vpnPsk
+$vpnUsername        = $config.Credentials.vpnUsername
+$vpnPassword        = $config.Credentials.vpnPassword
+$domainJoinUser     = $config.Credentials.domainJoinUser
+$domainJoinPassword = $config.Credentials.domainJoinPassword
+$localAdminUser     = $config.Credentials.localAdminUser
+$localAdminPassword = $config.Credentials.localAdminPassword
 
 # Build the list of apps to install from the INI file
 $appCount = [int]$config.Apps.Count
@@ -90,7 +90,7 @@ if (-not $inPS7) {
     $pwshPath = "C:\Program Files\PowerShell\7\pwsh.exe"
     if (Test-Path $pwshPath) {
         Write-Host "Found PS7. Switching over..."
-        Start-Process -FilePath $pwshPath -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" 
+        Start-Process -FilePath $pwshPath -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
         exit
     }
     else {
@@ -132,25 +132,33 @@ catch {
 }
 
 # --- Basic functions below ---
-function Render-Banner {
-    Set-CursorPosition -Row 1 -Column 1
-    try {
-        $bannerFile = Join-Path $PSScriptRoot "banner.txt"
-        if (Test-Path $bannerFile) {
-            $bannerLines = Get-Content $bannerFile -Encoding UTF8
-            $bannerColors = @("White", "White", "Cyan", "Cyan", "Gray", "Yellow", "DarkYellow", "Red", "DarkRed")
-            for ($i = 0; $i -lt $bannerLines.Count; $i++) {
-                $color = if ($i -lt $bannerColors.Count) { $bannerColors[$i] } else { "DarkRed" }
-                Write-ClearedLine -Text $bannerLines[$i] -Width 80 -ForegroundColor $color
-            }
-        }
-        else {
-            throw "No banner file."
-        }
+
+# Updated Write-ClearedLine function that supports hex codes.
+function Write-ClearedLine {
+    param(
+        [string]$Text,
+        [int]$Width = 80,
+        $ForegroundColor = $null
+    )
+    $clearLine = "$([char]27)[2K"
+    $padded = $Text.PadRight($Width)
+    if ($ForegroundColor -and $ForegroundColor -match "^#([0-9A-Fa-f]{6})$") {
+         # If color is hex, convert to RGB values.
+         $hex = $ForegroundColor.Substring(1)
+         $r = [Convert]::ToInt32($hex.Substring(0,2),16)
+         $g = [Convert]::ToInt32($hex.Substring(2,2),16)
+         $b = [Convert]::ToInt32($hex.Substring(4,2),16)
+         $ansiColor = "$([char]27)[38;2;${r};${g};${b}m"
+         $reset = "$([char]27)[0m"
+         Write-Host -NoNewLine "$clearLine$ansiColor$padded$reset"
     }
-    catch {
-        Write-ClearedLine -Text "BANNER ISSUES" -Width 80 -ForegroundColor Green
+    elseif ($ForegroundColor) {
+         Write-Host -NoNewLine "$clearLine$padded" -ForegroundColor $ForegroundColor
     }
+    else {
+         Write-Host -NoNewLine "$clearLine$padded"
+    }
+    Write-Host
 }
 
 function Set-CursorPosition {
@@ -163,19 +171,25 @@ function Set-CursorPosition {
     Write-Host -NoNewLine $ansiCode
 }
 
-function Write-ClearedLine {
-    param(
-        [string]$Text,
-        [int]$Width = 80,
-        $ForegroundColor = $null
-    )
-    Write-Host -NoNewLine "$([char]27)[2K"
-    $padded = $Text.PadRight($Width)
-    if ($ForegroundColor) {
-        Write-Host $padded -ForegroundColor $ForegroundColor
+function Render-Banner {
+    Set-CursorPosition -Row 1 -Column 1
+    try {
+        $bannerFile = Join-Path $PSScriptRoot "banner.txt"
+        if (Test-Path $bannerFile) {
+            $bannerLines = Get-Content $bannerFile -Encoding UTF8
+            # You can now use color names or hex codes here:
+            $bannerColors = @("White", "#00FFFF", "Gray", "Yellow", "#FFD700", "Red", "#FFD700", "Red", "#8B0000")
+            for ($i = 0; $i -lt $bannerLines.Count; $i++) {
+                $color = if ($i -lt $bannerColors.Count) { $bannerColors[$i] } else { "#8B0000" }
+                Write-ClearedLine -Text $bannerLines[$i] -Width 80 -ForegroundColor $color
+            }
+        }
+        else {
+            throw "No banner file."
+        }
     }
-    else {
-        Write-Host $padded
+    catch {
+        Write-ClearedLine -Text "BANNER ISSUES" -Width 80 -ForegroundColor "Green"
     }
 }
 

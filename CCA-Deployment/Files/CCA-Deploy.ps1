@@ -205,7 +205,7 @@ function Render-AppStatus {
 }
 
 # --- Windows Updates Task ---
-$updateTableStartLine = 8
+$updateTableStartLine = 12
 $updateStatus = @{ "Windows Updates" = "Pending" }
 Clear-Host
 Write-Host "Doing Windows Updates..." -ForegroundColor Cyan

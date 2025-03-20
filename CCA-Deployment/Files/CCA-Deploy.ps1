@@ -204,8 +204,11 @@ function Render-AppStatus {
     }
 }
 
+# Get table start line from config (default to 8 if not set)
+$tableStartLine = if ($config.General.TableStartLine) { [int]$config.General.TableStartLine } else { 8 }
+
 # --- Windows Updates Task ---
-$updateTableStartLine = 12
+$updateTableStartLine = $tableStartLine
 $updateStatus = @{ "Windows Updates" = "Pending" }
 Clear-Host
 Write-Host "Doing Windows Updates..." -ForegroundColor Cyan
@@ -451,7 +454,6 @@ foreach ($app in $appsToInstall) {
     $appStatus[$app.Name] = "Pending"
 }
 
-$tableStartLine = if ($config.General.TableStartLine) { [int]$config.General.TableStartLine } else { 8 }
 Clear-Host
 Write-Host "Installing apps..." -ForegroundColor Cyan
 Render-AppStatus -StatusTable $appStatus -Keys $appStatus.Keys -startLine $tableStartLine

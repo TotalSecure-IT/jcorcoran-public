@@ -1,0 +1,57 @@
+# you must rename this file back to config.ini
+
+[General]
+vpnName=CCA VPN
+serverAddress=IP address
+TableStartLine=10 # this controls the starting position of the table below the banner / or it also represents the number of lines in the banner file
+
+[Credentials]
+vpnPsk=presharedkey
+vpnUsername=username
+vpnPassword=password
+domainJoinUser=username
+domainJoinPassword=password
+localAdminUser=username
+localAdminPassword=password
+
+[Apps]
+Count=8 # you must change this when adding apps or the script will skip over new ones
+App1Name=Google Chrome
+App1Source=C:\CCA-Deployment\Installers\googlechromestandaloneenterprise64.msi
+App1Args=/qn /norestart
+App1CheckPath=C:\Program Files\Google\Chrome\Application\chrome.exe
+
+App2Name=Firefox
+App2Source=C:\CCA-Deployment\Installers\Firefox Setup 117.0.exe
+App2Args=/S
+App2CheckPath=C:\Program Files\Mozilla Firefox\firefox.exe
+
+App3Name=Adobe Reader DC
+App3Source=C:\CCA-Deployment\Installers\AcroRdrDC2300320284_en_US.exe
+App3Args=/sAll /rs /msi EULA_ACCEPT=YES
+App3CheckPath=C:\Program Files (x86)\Adobe\Acrobat Reader DC\Reader\AcroRd32.exe
+
+App4Name=VSA X
+App4Source=C:\CCA-Deployment\Installers\windows_agent_x64.msi
+App4Args=/qn /norestart
+App4CheckPath=C:\Program Files\VSA X\PCMonitorManager.exe
+
+App5Name=Sophos
+App5Source=C:\CCA-Deployment\Installers\SophosSetup.exe
+App5Args=--quiet
+App5CheckPath=C:\Program Files\Sophos\Endpoint Defense\SEDService.exe
+
+App6Name=Teams Bootstrapper
+App6Source=C:\CCA-Deployment\Installers\teamsbootstrapper.exe
+App6Args=-p
+App6CheckPath=C:\Program Files\WindowsApps\MSTeams_25044.2208.3471.2155_x64__8wekyb3d8bbwe\ms-teams.exe
+
+App7Name=Netextender
+App7Source=C:\CCA-Deployment\Installers\NetExtender-x64-10.2.341.msi
+App7Args=server=24.225.22.246 domain=kaccrra.local /norestart /qn
+App7CheckPath=C:\Program Files (x86)\SonicWall\SSL-VPN\NetExtender\NEGui.exe
+
+App8Name=Acronis Backup Client
+App8Source=C:\CCA-Deployment\Installers\Acronis\BackupClient64.msi
+App8Args=TRANSFORMS=C:\CCA-Deployment\Installers\Acronis\BackupClient64.msi.mst /l*v C:\CCA-Deployment\Files\Acronis_log.txt /qn /norestart
+App8CheckPath=C:\Program Files\Common Files\Acronis\ActiveProtection\active_protection_service.exe

@@ -8,6 +8,7 @@ If there are any problems, try to run the script a second time. If that doesnt w
 
 changes:
 
++ fixed issue with --nowarn error, requiring winget update prior to ps7 install
 + improved logging
 + improved redundancy
 + improved error handling

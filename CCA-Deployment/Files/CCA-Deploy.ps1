@@ -23,6 +23,12 @@ function Write-Log {
 $global:ScriptStart = Get-Date
 Write-Log "Script started."
 
+$global:RebootRequired = @()
+
+if ($process.ExitCode -eq 3010) {
+    $global:RebootRequired += $app.Name
+}
+
 # Function to read our INI file into a hashtable
 function Convert-IniToHashtable {
     param(
@@ -509,14 +515,16 @@ foreach ($app in $appsToInstall) {
         }
         Write-Log "Installing $($app.Name)..."
         $process = Start-Process -FilePath $app.Source -ArgumentList $app.Args -Wait -PassThru -ErrorAction Stop
-        if ($process.ExitCode -eq 0) {
+        Start-Sleep -Seconds 5  # Give time for any post-install write delays
+
+        if ($process.ExitCode -eq 0 -or $process.ExitCode -eq 3010 -or (Test-Path $app.CheckPath)) {
+            $statusNote = if ($process.ExitCode -eq 3010) { " (Reboot required)" } else { "" }
             $appStatus[$app.Name] = "Success"
-            Write-Log "$($app.Name) installed successfully."
-        }
-        else {
+            Write-Log "$($app.Name) installed successfully$statusNote"
+        } else {
             $appStatus[$app.Name] = "Failed"
             Write-Log "$($app.Name) failed with exit code $($process.ExitCode)."
-        }
+        }        
     }
     catch {
         $appStatus[$app.Name] = "Failed"
@@ -681,6 +689,10 @@ $errorsEncountered = if ($global:ErrorLog.Count -gt 0) {
     $global:ErrorLog -join "`n"
 } else {
     "None"
+}
+
+if ($global:RebootRequired.Count -gt 0) {
+    Write-Log "`n⚠️  Reboot is required for the following apps: $($global:RebootRequired -join ', ')"
 }
 
 $summary = @"

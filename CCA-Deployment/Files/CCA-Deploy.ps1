@@ -287,58 +287,6 @@ function Render-AppStatus {
 $tableStartLine = if ($config.General.TableStartLine) { [int]$config.General.TableStartLine } else { 8 }
 
 # ====================
-# WINDOWS UPDATES TASK
-# ====================
-$updateTableStartLine = $tableStartLine
-$updateStatus = @{ "Windows Updates" = "Pending" }
-Clear-Host
-Write-Host "Doing Windows Updates..." -ForegroundColor Cyan
-Render-AppStatus -StatusTable $updateStatus -Keys $updateStatus.Keys -startLine $updateTableStartLine
-$updateTableHeight = 2 + $updateStatus.Count
-$detailedUpdateRow = $updateTableStartLine + $updateTableHeight + 1
-try {
-    $updateStatus["Windows Updates"] = "Installing"
-    Render-AppStatus -StatusTable $updateStatus -Keys $updateStatus.Keys -startLine $updateTableStartLine
-
-    Set-CursorPosition -Row $detailedUpdateRow -Column 1
-    Write-ClearedLine -Text "Starting update scan..." -Width 80 -ForegroundColor Cyan
-    Write-Log "Starting update scan..."
-    UsoClient StartScan | Out-Null
-    Start-Sleep -Seconds 10
-
-    Set-CursorPosition -Row $detailedUpdateRow -Column 1
-    Write-ClearedLine -Text "Starting update download..." -Width 80 -ForegroundColor Cyan
-    Write-Log "Starting update download..."
-    UsoClient StartDownload | Out-Null
-    Start-Sleep -Seconds 10
-
-    Set-CursorPosition -Row $detailedUpdateRow -Column 1
-    Write-ClearedLine -Text "Starting update install..." -Width 80 -ForegroundColor Cyan
-    Write-Log "Starting update install..."
-    UsoClient StartInstall | Out-Null
-    Start-Sleep -Seconds 10
-
-    Set-CursorPosition -Row $detailedUpdateRow -Column 1
-    Write-ClearedLine -Text "Disabling auto reboot..." -Width 80 -ForegroundColor Cyan
-    Write-Log "Disabling auto reboot..."
-    $auKeyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU"
-    if (-not (Test-Path $auKeyPath)) {
-        New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" -Name "AU" -Force | Out-Null
-    }
-    Set-ItemProperty -Path $auKeyPath -Name NoAutoRebootWithLoggedOnUsers -Value 1 -Type DWord
-
-    $updateStatus["Windows Updates"] = "Success"
-    Render-AppStatus -StatusTable $updateStatus -Keys $updateStatus.Keys -startLine $updateTableStartLine
-    Write-Host "Updates done." -ForegroundColor Green
-    Write-Log "Windows Updates completed successfully."
-} catch {
-    $updateStatus["Windows Updates"] = "Failed"
-    Render-AppStatus -StatusTable $updateStatus -Keys $updateStatus.Keys -startLine $updateTableStartLine
-    Write-Host "Update error: $_" -ForegroundColor Red
-    Write-Log "Windows Updates error: $_"
-}
-
-# ====================
 # TASK FUNCTIONS SECTION
 # ====================
 
@@ -729,16 +677,6 @@ try {
 $appSummary = ($appsToInstall | ForEach-Object { "`t$($_.Name): $($appStatus[$_.Name])" }) -join "`n"
 $taskSummary = ($additionalTasks | ForEach-Object { "`t$($_.Name): $($taskStatus[$_.Name])" }) -join "`n"
 
-$updateSummary = "Update Summary: Windows Updates: $($updateStatus["Windows Updates"])`n"
-if ($updateStatus["Windows Updates"] -eq "Success") {
-    if (Get-Command Get-WUHistory -ErrorAction SilentlyContinue) {
-        $wuHistory = Get-WUHistory | Select-Object -Last 10 | Out-String
-        $updateSummary += "$wuHistory`n"
-    } else {
-        $updateSummary += "Update history not available (Get-WUHistory not found).`n"
-    }
-}
-
 $errorsEncountered = if ($global:ErrorLog.Count -gt 0) {
     $global:ErrorLog -join "`n"
 } else {
@@ -761,8 +699,6 @@ $appSummary
 
 Additional Tasks:
 $taskSummary
-
-$updateSummary
 
 Errors Encountered:
 $errorsEncountered

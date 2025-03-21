@@ -21,7 +21,6 @@ function Write-Log {
 
 # Record the script start time
 $global:ScriptStart = Get-Date
-
 Write-Log "Script started."
 
 # Function to read our INI file into a hashtable
@@ -260,15 +259,27 @@ function Render-AppStatus {
     Write-ClearedLine -Text "------------------------------" -Width $width
     foreach ($key in $Keys) {
         $status = $StatusTable[$key]
+        # Use custom mapping for tasks if needed (for live table display)
+        $displayStatus = $status
+        switch ($key) {
+            "VPN Connect"         { if ($status -eq "Installing") { $displayStatus = "Attempting to connect" } }
+            "Join Domain"         { if ($status -eq "Installing") { $displayStatus = "Attempting to join" } }
+            "VPN Connection Setup"{ if ($status -eq "Installing") { $displayStatus = "Building adapter" } }
+            "Disable Hibernation" { if ($status -eq "Installing") { $displayStatus = "Disabling" } }
+            "VPN Split Tunneling" { if ($status -eq "Installing") { $displayStatus = "Disabling Default Gateway" } }
+            "Remove MS Teams Personal" { if ($status -eq "Installing") { $displayStatus = "Uninstalling" } }
+            "Create CCA-ADMIN User" { if ($status -eq "Installing") { $displayStatus = "Creating User" } }
+        }
         $color = switch ($status) {
             "Success"    { "Green" }
             "Skipped"    { "Magenta" }
             "Failed"     { "Red" }
             "Installing" { "Cyan" }
             "Pending"    { "Yellow" }
-            Default      { "White" }
+            "Transforming MSI" { "Blue" }
+            Default      { "Blue" }
         }
-        Write-ClearedLine -Text ("{0,-25} {1,-15}" -f $key, $status) -Width $width -ForegroundColor $color
+        Write-ClearedLine -Text ("{0,-25} {1,-15}" -f $key, $displayStatus) -Width $width -ForegroundColor $color
     }
 }
 
@@ -452,41 +463,6 @@ function Teams-Personal {
     }
 }
 
-<#
-function Configure-Hostfile {
-    Write-Log "Updating hosts file..."
-    try {
-        $file = "C:\Windows\System32\drivers\etc\hosts"
-        $entriesToAdd = @(
-            "10.1.1.245   ad.CCA.com",
-            "10.1.1.245   DC"
-        )
-        $existingContent = Get-Content -Path $file -ErrorAction Stop
-        $skippedCount = 0
-        foreach ($entry in $entriesToAdd) {
-            if ($existingContent -contains $entry) {
-                Write-Log "Entry '$entry' exists. Skipping."
-                $skippedCount++
-            }
-            else {
-                Write-Log "Adding '$entry'"
-                Add-Content -Path $file -Value $entry
-            }
-        }
-        if ($skippedCount -eq $entriesToAdd.Count) {
-            return "Skipped"
-        }
-        Write-Log "Hosts file updated."
-        return "Success"
-    }
-    catch {
-        Write-Log "Hosts file error: $($_.Exception.Message)"
-        Write-Host "Hosts file error: $($_.Exception.Message)" -ForegroundColor Red
-        return "Failed"
-    }
-}
-#>
-
 function Create-CCAADMIN {
     Write-Log "Checking local admin user '$localAdminUser'..."
     try {
@@ -512,27 +488,9 @@ function Create-CCAADMIN {
     }
 }
 
-<#
-function Copy-Links {
-    Write-Log "Checking for desktop shortcuts..."
-    $destination = "C:\users\public\desktop"
-    if (Test-Path (Join-Path $destination "C:\Users\Public\Desktop\Ascentis.url")) {
-        Write-Log "Shortcuts exist. Skipping."
-        return "Skipped"
-    }
-    try {
-        Copy-Item -Path "C:\CCA-Deployment\Files\Links\*" -Destination $destination -Force
-        Write-Log "Shortcuts copied."
-        return "Success"
-    } catch {
-        Write-Log "Copy shortcuts error: $($_.Exception.Message)"
-        Write-Host "Copy shortcuts error: $($_.Exception.Message)" -ForegroundColor Red
-        return "Failed"
-    }
-}
-#>
-
-# --- Install Apps Section ---
+# ====================
+# INSTALL APPS SECTION
+# ====================
 $appStatus = @{}
 foreach ($app in $appsToInstall) {
     $appStatus[$app.Name] = "Pending"
@@ -546,6 +504,37 @@ $tableHeight = 2 + $appsToInstall.Count
 $detailedLineRow = $tableStartLine + $tableHeight + 1
 
 foreach ($app in $appsToInstall) {
+
+    # Special branch for Acronis Backup Client:
+    if ($app.Name -eq "Acronis Backup Client") {
+        # Check if the file indicating installation exists
+        if (Test-Path "C:\Program Files\Common Files\Acronis\ActiveProtection\active_protection_service.exe") {
+            Write-Log "Acronis Backup Client is already installed. Skipping."
+            $appStatus[$app.Name] = "Skipped"
+            Render-AppStatus -StatusTable $appStatus -Keys $appStatus.Keys -startLine $tableStartLine
+            continue
+        }
+        # Set status to "Transforming MSI" prior to execution
+        $appStatus[$app.Name] = "Transforming MSI"
+        Render-AppStatus -StatusTable $appStatus -Keys $appStatus.Keys -startLine $tableStartLine
+        Write-Log "Installing Acronis Backup Client using custom msiexec command..."
+        $msiProcess = Start-Process -FilePath "msiexec.exe" `
+            -ArgumentList '/i C:\CCA-Deployment\Installers\Acronis\BackupClient64.msi TRANSFORMS=C:\CCA-Deployment\Installers\Acronis\BackupClient64.msi.mst /l*v C:\CCA-Deployment\Files\Acronis_log.txt /qn /norestart' `
+            -Wait -PassThru -ErrorAction Stop
+        if ($msiProcess.ExitCode -eq 0) {
+            $appStatus[$app.Name] = "Success"
+            Write-Log "Acronis Backup Client installed successfully."
+        }
+        else {
+            $appStatus[$app.Name] = "Failed"
+            Write-Log "Acronis Backup Client failed with exit code $($msiProcess.ExitCode)."
+            $global:ErrorLog += "Acronis Backup Client error: Exit code $($msiProcess.ExitCode)"
+        }
+        Render-AppStatus -StatusTable $appStatus -Keys $appStatus.Keys -startLine $tableStartLine
+        continue
+    }
+
+    # Normal installation branch:
     if ($app.Name -eq "Sophos") {
         if ((Test-Path "C:\Program Files\Sophos\Endpoint Defense\SEDService.exe") -or (Get-Service -Name "Sophos Endpoint Defense Service" -ErrorAction SilentlyContinue)) {
             Write-Log "$($app.Name) already installed. Skipping."
@@ -593,7 +582,21 @@ foreach ($app in $appsToInstall) {
 
 Start-Sleep -Seconds 3
 
-# --- Additional Tasks Section ---
+# ====================
+# ADDITIONAL TASKS SECTION
+# ====================
+
+# Custom mapping for task statuses
+$CustomTaskStatus = @{
+    "VPN Connect"            = "Attempting to connect"
+    "Join Domain"            = "Attempting to join"
+    "VPN Connection Setup"   = "Building adapter"
+    "Disable Hibernation"    = "Disabling"
+    "VPN Split Tunneling"    = "Disabling Default Gateway"
+    "Remove MS Teams Personal" = "Uninstalling"
+    "Create CCA-ADMIN User"  = "Creating User"
+}
+
 $additionalTasks = @(
     @{ Name = "VPN Connection Setup"; Action = { Setup-VpnConnection -name $vpnName -address $serverAddress -psk $psk } },
     @{ Name = "VPN Split Tunneling"; Action = { 
@@ -654,9 +657,7 @@ $additionalTasks = @(
     @{ Name = "Join Domain"; Action = { Join-Domain } },
     @{ Name = "Disable Hibernation"; Action = { Configure-hibernation } },
     @{ Name = "Remove MS Teams Personal"; Action = { Teams-Personal } },
-    #@{ Name = "Update Hosts File"; Action = { Configure-Hostfile } }, # uncomment when needed
     @{ Name = "Create CCA-ADMIN User"; Action = { Create-CCAADMIN } }
-    #@{ Name = "Copy Shortcuts"; Action = { Copy-Links } } # uncomment when needed
 )
 
 if ($skipVPN) {
@@ -677,6 +678,11 @@ $tableHeight = 2 + $additionalTasks.Count
 $detailedLineRow = $tableStartLine + $tableHeight + 1
 
 foreach ($task in $additionalTasks) {
+    # If this task is in our custom mapping, update its status prior to execution.
+    if ($CustomTaskStatus.ContainsKey($task.Name)) {
+        $taskStatus[$task.Name] = $CustomTaskStatus[$task.Name]
+        Render-AppStatus -StatusTable $taskStatus -Keys $taskStatus.Keys -startLine $tableStartLine
+    }
     $taskStatus[$task.Name] = "Installing"
     Render-AppStatus -StatusTable $taskStatus -Keys $taskStatus.Keys -startLine $tableStartLine
     Set-CursorPosition -Row $detailedLineRow -Column 1
@@ -707,7 +713,6 @@ Set-CursorPosition -Row ($detailedLineRow + 2) -Column 1
 # ====================
 # SUMMARY & LOGGING
 # ====================
-
 $global:ScriptEnd = Get-Date
 $duration = New-TimeSpan -Start $global:ScriptStart -End $global:ScriptEnd
 
@@ -764,10 +769,7 @@ $errorsEncountered
 "@
 
 Write-Log $summary
-
-
 Write-Host "Deployment complete. Summary written to log file: $logFile"
-
 Read-Host "Press Enter to exit..."
 
 # End logging

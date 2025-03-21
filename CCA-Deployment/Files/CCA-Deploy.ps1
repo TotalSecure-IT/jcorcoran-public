@@ -129,6 +129,9 @@ if (-not $inPS7) {
             Read-Host "Press Enter to exit..."
             exit 1
         }
+        Write-Host "Updating winget..." -ForegroundColor Cyan
+        Write-Log "Updating winget..."
+        winget upgrade --all --silent
         Write-Host "Trying to install PS7 via winget..." -ForegroundColor Cyan
         Write-Log "Attempting to install PS7 via winget."
         winget install --id Microsoft.PowerShell --source winget --silent --accept-package-agreements --accept-source-agreements --force --verbose --nowarn --disable-interactivity

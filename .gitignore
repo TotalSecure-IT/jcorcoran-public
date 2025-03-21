@@ -10,3 +10,4 @@ OCCK-Deployment/Files/Occk-Deploy.ps1
 *.msi
 *.mst
 *.cab
+*.zip

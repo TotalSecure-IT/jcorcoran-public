@@ -148,8 +148,8 @@ if (-not $inPS7) {
             Write-Log "PS7 installation initiated successfully."
         }
         else {
-            Write-Error "PS7 install failed. Do it manually."
-            Write-Log "PS7 installation failed."
+            Write-Error "PS7 install failed. Update Winget."
+            Write-Log "PS7 install failed. Update Winget."
         }
         exit 1
     }

@@ -1,13 +1,7 @@
-OCCK-Deployment/Files/config.ini
-OCCK-Deployment/Installers/windows_agent_x64.msi
-OCCK-Deployment/Installers/teamsbootstrapper.exe
-OCCK-Deployment/Installers/SophosSetup.exe
-OCCK-Deployment/Installers/googlechromestandaloneenterprise64.msi
-OCCK-Deployment/Installers/Firefox Setup 117.0.exe
-OCCK-Deployment/Installers/AcroRdrDC2300320284_en_US.exe
 OCCK-Deployment/Files/Occk-Deploy.ps1
 *.exe
 *.msi
 *.mst
 *.cab
 *.zip
+*.ini

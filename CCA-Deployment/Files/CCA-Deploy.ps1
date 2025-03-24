@@ -248,7 +248,7 @@ function Render-Banner {
         if (Test-Path $bannerFile) {
             $bannerLines = Get-Content $bannerFile -Encoding UTF8
             # Use the requested ANSI numeric indices for the banner:
-            $bannerColors = @("196", "124", "124", "88", "52", "52", "52", "52", "52", "52")
+            $bannerColors = @("DarkBlue", "Blue", "DarkCyan", "DarkGreen", "Green", "Cyan", "Gray", "DarkGray", "Green", "DarkGreen")
             for ($i = 0; $i -lt $bannerLines.Count; $i++) {
                 $color = if ($i -lt $bannerColors.Count) { $bannerColors[$i] } else { "52" }
                 Write-ClearedLine -Text $bannerLines[$i] -Width 80 -ForegroundColor $color

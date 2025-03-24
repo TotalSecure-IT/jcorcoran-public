@@ -5,3 +5,6 @@ OCCK-Deployment/Files/Occk-Deploy.ps1
 *.cab
 *.zip
 *.ini
+*.ini
+*.ini
+CCA-Deployment/Files/config.ini

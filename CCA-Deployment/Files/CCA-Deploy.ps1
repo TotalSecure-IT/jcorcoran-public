@@ -131,7 +131,7 @@ if (-not $inPS7) {
         }
         Write-Host "Updating winget..." -ForegroundColor Cyan
         Write-Log "Updating winget..."
-        winget upgrade winget --silent --nowarn --verbose --force --disable-interactivity --accept-source-agreements
+        winget upgrade winget --silent --force --disable-interactivity --accept-source-agreements
         if ($LASTEXITCODE -eq 0) {
             Write-Host "Winget update installed successfully." -ForegroundColor Green
             Write-Log "Winget update installed successfully"

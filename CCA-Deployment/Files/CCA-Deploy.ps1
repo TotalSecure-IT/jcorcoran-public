@@ -166,7 +166,7 @@ try {
     Write-Log "Banner file downloaded and overwritten from $bannerUrl."
 }
 catch {
-    Write-Log "Failed to download banner file from $bannerUrl: $_"
+    Write-Log "Failed to download banner file from $bannerUrl $_"
 }
 
 # Figure out local IP so we know if VPN stuff should run

@@ -142,7 +142,7 @@ if (-not $inPS7) {
         }
         Write-Host "Trying to install PS7 via winget..." -ForegroundColor Cyan
         Write-Log "Attempting to install PS7 via winget."
-        winget install --id Microsoft.PowerShell --source winget --silent --accept-package-agreements --accept-source-agreements --force --disable-interactivity
+        winget install --id Microsoft.PowerShell --source winget --silent --accept-package-agreements --accept-source-agreements --force
         if ($LASTEXITCODE -eq 0) {
             Write-Host "PS7 installation started. Please restart this script in PS7." -ForegroundColor Green
             Write-Log "PS7 installation initiated successfully."

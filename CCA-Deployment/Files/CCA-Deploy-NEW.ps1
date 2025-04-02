@@ -398,16 +398,6 @@ if (-not $inPS7) {
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-$bannerUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/CCA-Deployment/Files/banner.txt"
-$bannerFile = Join-Path $PSScriptRoot "banner.txt"
-try {
-    Invoke-WebRequest -Uri $bannerUrl -OutFile $bannerFile -UseBasicParsing -ErrorAction Stop
-    Write-Log "Banner file downloaded and overwritten from $bannerUrl."
-}
-catch {
-    Write-Log "Failed to download banner file from $bannerUrl $_"
-}
-
 $skipVPN = $false
 try {
     $localIPObj = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -ne "127.0.0.1" } | Select-Object -First 1

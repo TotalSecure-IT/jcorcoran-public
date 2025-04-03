@@ -286,7 +286,7 @@ if ($config.WingetApps) {
             $global:ErrorLog += "No installer URL found for $packageName via winget show."
             continue
         }
-        $destinationFolder = "C:\WATSON-Deployment\Installers"
+        $destinationFolder = "C:\Watson-Electric\Installers"
         if (-not (Test-Path $destinationFolder)) {
             New-Item -ItemType Directory -Path $destinationFolder | Out-Null
             Write-Log "Created directory $destinationFolder."
@@ -591,7 +591,7 @@ foreach ($app in $appsToInstall) {
         Render-AppStatus -StatusTable $appStatus -StatusKeys $appStatus.Keys -startLine $tableStartLine
         Write-Log "Installing Acronis Backup Client using custom msiexec command..."
         $msiProcess = Start-Process -FilePath "msiexec.exe" `
-            -ArgumentList '/i C:\WATSON-Deployment\Installers\Acronis\BackupClient64.msi TRANSFORMS=C:\WATSON-Deployment\Installers\Acronis\BackupClient64.msi.mst /l*v C:\WATSON-Deployment\Files\Acronis_log.txt /qn /norestart' `
+            -ArgumentList '/i C:\Watson-Electric\Installers\Acronis\BackupClient64.msi TRANSFORMS=C:\Watson-Electric\Installers\Acronis\BackupClient64.msi.mst /l*v C:\Watson-Electric\Files\Acronis_log.txt /qn /norestart' `
             -Wait -PassThru -ErrorAction Stop
         if ($msiProcess.ExitCode -eq 0) {
             $appStatus[$app.Name] = "Success"

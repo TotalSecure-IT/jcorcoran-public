@@ -1,7 +1,7 @@
 # Define GitHub raw URLs (replace with your actual GitHub repo URLs)
 $GITHUB_RAW_URL_BAT = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Watson-Electric/Files/WATSON-Deploy.bat"
 $GITHUB_RAW_URL_PS1 = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Watson-Electric/Files/WATSON-Deploy.ps1"
-$GITHUB_RAW_URL_BANNER = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/WATSON-Deployment/Files/banner.txt"
+$GITHUB_RAW_URL_BANNER = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Watson-Electric/Files/banner.txt"
 
 # Define local file paths
 $SCRIPT_FOLDER = "$PSScriptRoot"

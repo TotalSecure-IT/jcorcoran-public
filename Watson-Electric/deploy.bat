@@ -1,1 +1,1 @@
-powershell.exe -ExecutionPolicy Bypass -File "C:\WATSON-Deployment\Files\update-launcher.ps1"
+powershell.exe -ExecutionPolicy Bypass -File "C:\Watson-Electric\Files\update-launcher.ps1"

@@ -1,0 +1,2 @@
+net stop WFDTDScannerService
+net start WFDTDScannerService

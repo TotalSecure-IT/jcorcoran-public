@@ -1,12 +1,12 @@
 # Define GitHub raw URLs (replace with your actual GitHub repo URLs)
 $GITHUB_RAW_URL_BAT = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Watson-Electric/Files/WATSON-Deploy.bat"
 $GITHUB_RAW_URL_PS1 = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Watson-Electric/Files/WATSON-Deploy.ps1"
-$GITHUB_RAW_URL_BANNER = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/CCA-Deployment/Files/banner.txt"
+$GITHUB_RAW_URL_BANNER = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/WATSON-Deployment/Files/banner.txt"
 
 # Define local file paths
 $SCRIPT_FOLDER = "$PSScriptRoot"
-$LOCAL_BAT = "$SCRIPT_FOLDER\CCA-Deploy.bat"
-$LOCAL_PS1 = "$SCRIPT_FOLDER\CCA-Deploy.ps1"
+$LOCAL_BAT = "$SCRIPT_FOLDER\WATSON-Deploy.bat"
+$LOCAL_PS1 = "$SCRIPT_FOLDER\WATSON-Deploy.ps1"
 $LOCAL_BANNER = "$SCRIPT_FOLDER\banner.txt"
 
 # Function to download and replace files
@@ -32,6 +32,6 @@ Update-File -Url $GITHUB_RAW_URL_BAT -Destination $LOCAL_BAT
 Update-File -Url $GITHUB_RAW_URL_PS1 -Destination $LOCAL_PS1
 Update-File -Url $GITHUB_RAW_URL_BANNER -Destination $LOCAL_BANNER
 
-# Launch CCA-Deploy.bat
-Write-Host "Launching CCA-Deploy.bat..."
+# Launch WATSON-Deploy.bat
+Write-Host "Launching WATSON-Deploy.bat..."
 Start-Process -FilePath $LOCAL_BAT -NoNewWindow -Wait

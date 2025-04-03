@@ -476,7 +476,7 @@ function Setup-VpnConnection {
 }
 
 function Join-Domain {
-    $domain = "kaccrra.local"
+    $domain = "watson.watsonelectric.us"
     Write-Log "Checking domain membership..."
     $currentDomain = (Get-WmiObject Win32_ComputerSystem).Domain
     if ($currentDomain -and $currentDomain -ieq $domain) {

@@ -540,7 +540,7 @@ function Teams-Personal {
     }
 }
 
-function Create-CCAADMIN {
+function Create-WATSONADMIN {
     Write-Log "Checking local admin user '$localAdminUser'..."
     try {
         $user = Get-LocalUser -Name $localAdminUser -ErrorAction SilentlyContinue
@@ -663,7 +663,7 @@ $CustomTaskStatus = @{
     "Disable Hibernation"    = "Disabling"
     "VPN Split Tunneling"    = "Disabling Default Gateway"
     "Remove MS Teams Personal" = "Uninstalling"
-    "Create CCA-ADMIN User"  = "Creating User"
+    "Create WATSON-ADMIN User"  = "Creating User"
 }
 
 $additionalTasks = @(
@@ -726,7 +726,7 @@ $additionalTasks = @(
     @{ Name = "Join Domain"; Action = { Join-Domain } },
     @{ Name = "Disable Hibernation"; Action = { Configure-hibernation } },
     @{ Name = "Remove MS Teams Personal"; Action = { Teams-Personal } },
-    @{ Name = "Create CCA-ADMIN User"; Action = { Create-CCAADMIN } }
+    @{ Name = "Create WATSON-ADMIN User"; Action = { Create-WATSONADMIN } }
 )
 
 if ($skipVPN) {

@@ -1,17 +1,12 @@
 {
 	"$schema" : "https://aka.ms/winget-packages.schema.2.0.json",
-<<<<<<< HEAD
 	"CreationDate" : "2025-04-03T10:53:11.500-00:00",
-=======
-	"CreationDate" : "2025-04-01T11:10:03.609-00:00",
->>>>>>> 04c8b55b83cc4c2cf2992a0dc54925eb843b8dc4
 	"Sources" : 
 	[
 		{
 			"Packages" : 
 			[
 				{
-<<<<<<< HEAD
 					"PackageIdentifier" : "Mozilla.Firefox",
 					"Version" : "137.0"
 				},
@@ -106,22 +101,6 @@
 				{
 					"PackageIdentifier" : "Microsoft.DevHome",
 					"Version" : "0.2000.758.0"
-=======
-					"PackageIdentifier" : "Mozilla.Firefox"
-				},
-				{
-					"PackageIdentifier" : "Google.Chrome"
-				},
-				{
-					"PackageIdentifier" : "Adobe.Acrobat.Reader.64-bit"
-				},
-				{
-					"PackageIdentifier" : "SonicWALL.NetExtender",
-					"Version" : "10.2.341"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.Teams"
->>>>>>> 04c8b55b83cc4c2cf2992a0dc54925eb843b8dc4
 				}
 			],
 			"SourceDetails" : 

@@ -13,6 +13,7 @@ If there are any problems, try to run the script a second time. If that doesnt w
 
 changes:
 
++ now using winget to download installer files
 + fixed issue with --nowarn error, requiring winget update prior to ps7 install
 + improved logging
 + improved redundancy
@@ -22,6 +23,8 @@ changes:
 
 known issues: 
 
++ acronis is massive and doesnt work on arm processors
++ script functions with acronis missing, but acronis functions need removed from script
 + join domain function incorrectly/cosmetically reports success on failure
 + the VPN connect sometimes works great, but maybe its the old sonicwall being old and doesnt respond in a timely manner. the script will attempt retries but it still may time out. just run the script again
 + the acronis installer is bulky and if msiexec messes up or if the window closes, those processess may hang and msiexec may need to be killed in the task manager or a reboot may be required

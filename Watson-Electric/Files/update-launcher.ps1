@@ -1,6 +1,6 @@
 # Define GitHub raw URLs (replace with your actual GitHub repo URLs)
-$GITHUB_RAW_URL_BAT = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/CCA-Deployment/Files/CCA-Deploy.bat"
-$GITHUB_RAW_URL_PS1 = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/CCA-Deployment/Files/CCA-Deploy.ps1"
+$GITHUB_RAW_URL_BAT = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Watson-Electric/Files/WATSON-Deploy.bat"
+$GITHUB_RAW_URL_PS1 = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Watson-Electric/Files/WATSON-Deploy.ps1"
 $GITHUB_RAW_URL_BANNER = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/CCA-Deployment/Files/banner.txt"
 
 # Define local file paths

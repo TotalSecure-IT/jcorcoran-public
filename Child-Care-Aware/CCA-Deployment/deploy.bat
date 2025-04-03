@@ -1,0 +1,1 @@
+powershell.exe -ExecutionPolicy Bypass -File "C:\CCA-Deployment\Files\update-launcher.ps1"

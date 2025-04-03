@@ -1,1 +1,0 @@
-powershell.exe -ExecutionPolicy Bypass -File "C:\OCCK-Deployment\Files\update-launcher.ps1"

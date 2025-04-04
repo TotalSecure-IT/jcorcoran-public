@@ -171,7 +171,7 @@ function Download-File {
 }
 
 # ----------------------------
-# Company-Specific Setup Function
+# Company-Specific Setup Function (Using Manifest)
 # ----------------------------
 function Setup-Company {
     param(
@@ -197,28 +197,77 @@ function Setup-Company {
         throw "Error creating company directories: $_"
     }
 
-    # Define file paths for the three company-specific files
-    $companyBannerFile = Join-Path $companyBannerDir "banner.txt"
-    $companyDeployBat = Join-Path $companyScriptsDir ("$companyFolderName-deploy.bat")
-    $companyDeployPS1 = Join-Path $companyScriptsDir ("$companyFolderName-deploy.ps1")
+    # Construct manifest URL using the adjusted company name
+    $manifestUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/$companyFolderName/manifest.txt"
 
-    # Placeholder URLs for the company-specific files (update with actual GitHub links later)
-    $bannerUrl = "https://raw.githubusercontent.com/YourRepo/Placeholder/banner.txt"
-    $deployBatUrl = "https://raw.githubusercontent.com/YourRepo/Placeholder/$companyFolderName-deploy.bat"
-    $deployPS1Url = "https://raw.githubusercontent.com/YourRepo/Placeholder/$companyFolderName-deploy.ps1"
+    # Download manifest file to a temporary location
+    $tempManifestFile = Join-Path $env:TEMP "manifest_$companyFolderName.txt"
+    try {
+         Download-File -url $manifestUrl -destination $tempManifestFile
+    }
+    catch {
+         throw "Error downloading manifest file from $manifestUrl $_"
+    }
 
-    # Download the files; any error here will be thrown
-    Download-File -url $bannerUrl -destination $companyBannerFile
-    Download-File -url $deployBatUrl -destination $companyDeployBat
-    Download-File -url $deployPS1Url -destination $companyDeployPS1
+    # Parse manifest file (each line should be: filename = "url")
+    $manifestContent = Get-Content $tempManifestFile -Raw
+    $manifestLines = $manifestContent -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
 
-    # Return a hashtable with the created file paths and directories for later use
+    # Initialize an array to collect any download errors
+    $downloadErrors = @()
+
+    foreach ($line in $manifestLines) {
+         if ($line -match '^(.*?)\s*=\s*"(.*?)"$') {
+             $fileName = $matches[1].Trim()
+             $fileUrl = $matches[2].Trim()
+         }
+         else {
+             $downloadErrors += "Invalid manifest line format: $line"
+             continue
+         }
+         
+         # Determine destination based on the file name
+         switch ($fileName.ToLower()) {
+             "banner.txt" {
+                $destPath = Join-Path $companyBannerDir "banner.txt"
+             }
+             "appslist.json" {
+                $destPath = Join-Path $companyScriptsDir "appslist.json"
+             }
+             "deploy.ps1" {
+                $destPath = Join-Path $companyScriptsDir "deploy.ps1"
+             }
+             default {
+                Write-Host "Skipping unrecognized file in manifest: $fileName" -ForegroundColor Yellow
+                continue
+             }
+         }
+         try {
+             Download-File -url $fileUrl -destination $destPath
+         }
+         catch {
+             $downloadErrors += "Error downloading $fileName from $fileUrl $_"
+         }
+    }
+    
+    # Summarize any download errors and prompt the user to acknowledge before proceeding
+    if ($downloadErrors.Count -gt 0) {
+         Write-Host "The following errors were encountered while downloading files from the manifest:" -ForegroundColor Red
+         foreach ($err in $downloadErrors) {
+             Write-Host $err -ForegroundColor Red
+         }
+         Write-Host "Press any key to continue..."
+         $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    }
+    
+    # Remove the temporary manifest file
+    Remove-Item $tempManifestFile -Force
+
+    # Return a hashtable with paths (deploy.ps1 is needed for launching)
     return @{
          "BannerDir"  = $companyBannerDir
          "ScriptsDir" = $companyScriptsDir
-         "BannerFile" = $companyBannerFile
-         "DeployBat"  = $companyDeployBat
-         "DeployPS1"  = $companyDeployPS1
+         "DeployPS1"  = Join-Path $companyScriptsDir "deploy.ps1"
          "FolderName" = $companyFolderName
     }
 }
@@ -256,13 +305,13 @@ while ($true) {
     }
 
     try {
-         # Attempt to set up the company-specific files and directories.
+         # Attempt to set up the company-specific files and directories via the manifest.
          $companySetup = Setup-Company -companyName $selectedOption
          # If no errors occurred, break out of the loop.
          break
     }
     catch {
-         # If any error occurs, clean up and return to the menu.
+         # If an error occurs during setup, clean up and return to the main menu.
          $companyFolderName = $selectedOption -replace '\s+', '-'
          $bannerDir = Join-Path "$BaseDir\Company_Banners" $companyFolderName
          $scriptsDir = Join-Path "$BaseDir\Company_Scripts" $companyFolderName
@@ -292,7 +341,7 @@ Clear-Host
 try {
     Write-Host "Launching $selectedOption onboarding script..." -ForegroundColor Cyan
     Write-Host "Using script file: $($companySetup.DeployPS1)" -ForegroundColor Cyan
-    # Dot-source the company-specific PowerShell script so it runs within the same session.
+    # Dot-source the company-specific deploy.ps1 so it runs in the same PowerShell session.
     . $companySetup.DeployPS1
 }
 catch {

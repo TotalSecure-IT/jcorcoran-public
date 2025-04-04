@@ -1,1 +1,1 @@
-powershell.exe -ExecutionPolicy Bypass -File "C:\TotalSecureUOBS\main.ps1"
+powershell.exe -ExecutionPolicy Bypass -File "D:\DATA\GitHub\jcorcoran\Universal\main.ps1"

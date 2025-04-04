@@ -1,0 +1,116 @@
+{
+	"$schema" : "https://aka.ms/winget-packages.schema.2.0.json",
+	"CreationDate" : "2025-04-03T10:53:11.500-00:00",
+	"Sources" : 
+	[
+		{
+			"Packages" : 
+			[
+				{
+					"PackageIdentifier" : "Mozilla.Firefox",
+					"Version" : "137.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.VCRedist.2010.x64",
+					"Version" : "10.0.40219"
+				},
+				{
+					"PackageIdentifier" : "Adobe.Acrobat.Reader.64-bit",
+					"Version" : "25.001.20435"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.SQLServer.2012.NativeClient",
+					"Version" : "11.4.7507.2"
+				},
+				{
+					"PackageIdentifier" : "HARMAN.AdobeAIR",
+					"Version" : "19.0.0.241"
+				},
+				{
+					"PackageIdentifier" : "Google.Chrome.EXE",
+					"Version" : "134.0.6998.178"
+				},
+				{
+					"PackageIdentifier" : "TeamViewer.TeamViewer",
+					"Version" : "15.64.3"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.VCRedist.2013.x64",
+					"Version" : "12.0.30501.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.Edge",
+					"Version" : "134.0.3124.93"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.VCRedist.2015+.x64",
+					"Version" : "14.30.30704.0"
+				},
+				{
+					"PackageIdentifier" : "Oracle.JavaRuntimeEnvironment",
+					"Version" : "8.0.4010.10"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.Teams.Classic",
+					"Version" : "1.8.0.6262"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.VCRedist.2015+.x86",
+					"Version" : "14.0.23026.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.VCRedist.2008.x86",
+					"Version" : "9.0.30729.6161"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.UpdateAssistant",
+					"Version" : "1.4.9200.23072"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.VCRedist.2010.x86",
+					"Version" : "10.0.40219"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.VCRedist.2013.x86",
+					"Version" : "12.0.30501.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.OneDrive",
+					"Version" : "25.046.0310.0005"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.Teams",
+					"Version" : "23285.3607.2525.937"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.AppInstaller",
+					"Version" : "1.25.340.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.UI.Xaml.2.7",
+					"Version" : "7.2409.9001.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.UI.Xaml.2.8",
+					"Version" : "8.2501.31001.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.VCLibs.Desktop.14",
+					"Version" : "14.0.33728.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.DevHome",
+					"Version" : "0.2000.758.0"
+				}
+			],
+			"SourceDetails" : 
+			{
+				"Argument" : "https://cdn.winget.microsoft.com/cache",
+				"Identifier" : "Microsoft.Winget.Source_8wekyb3d8bbwe",
+				"Name" : "winget",
+				"Type" : "Microsoft.PreIndexed.Package"
+			}
+		}
+	],
+	"WinGetVersion" : "1.10.340"
+}

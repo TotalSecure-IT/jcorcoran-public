@@ -1,0 +1,1 @@
+powershell.exe -ExecutionPolicy Bypass -File "D:\DATA\GitHub\jcorcoran\Universal\main.ps1"

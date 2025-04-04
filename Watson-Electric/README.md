@@ -5,7 +5,7 @@ If you need to rename the machine, do that FIRST and reboot--the script will use
 
 * STEPS *
 
-Copy the entire 'CCA-Deployment' folder to C:\
+Copy the entire 'Watson-Electric' folder to C:\
 
 Run deploy.bat AS AN ADMINISTRATOR....
 
@@ -13,6 +13,7 @@ If there are any problems, try to run the script a second time. If that doesnt w
 
 changes:
 
++ now uses winget
 + fixed issue with --nowarn error, requiring winget update prior to ps7 install
 + improved logging
 + improved redundancy

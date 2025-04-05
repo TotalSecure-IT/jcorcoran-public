@@ -7,3 +7,4 @@
 *.ini
 *.ini
 CCA-Deployment/Files/config.ini
+*.log

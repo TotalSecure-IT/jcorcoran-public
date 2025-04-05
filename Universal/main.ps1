@@ -21,7 +21,7 @@ Write-MainLog "Main script started."
 
 # ========================================================
 # Universal Onboarding Script Main Module
-# Run this script with: powershell.exe -ExecutionPolicy Bypass -File .\UniversalOnboarding.ps1
+# Run this script with: powershell.exe -ExecutionPolicy Bypass -File .\main.ps1
 # ========================================================
 
 # ----------------------------
@@ -54,31 +54,6 @@ if (-not (Test-Admin)) {
 }
 
 # ----------------------------
-# Environment Checks (Winget & PowerShell 7)
-# ----------------------------
-function Check-Environment {
-    # Check for Winget
-    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-        Write-Host "Winget is not installed. Installing winget..." -ForegroundColor Cyan
-        Write-MainLog "Winget not found; initiating installation."
-        # Insert silent installation code for winget here.
-    }
-    else {
-        Write-Host "Winget is installed. Checking for upgrades..." -ForegroundColor Cyan
-        Write-MainLog "Winget found; checking for upgrades."
-        # Insert code to upgrade winget if an update is available.
-    }
-
-    # Check for PowerShell 7
-    if (-not (Get-Command pwsh -ErrorAction SilentlyContinue)) {
-        Write-Host "PowerShell 7 is not installed. Installing PowerShell 7..." -ForegroundColor Cyan
-        Write-MainLog "PowerShell 7 not found; initiating installation."
-        # Insert installation code for PowerShell 7 here.
-    }
-}
-Check-Environment
-
-# ----------------------------
 # Create Required Folder Structure
 # ----------------------------
 $BaseDir = "C:\TotalSecureUOBS"
@@ -109,9 +84,11 @@ function Download-GlobalComponents {
 
     $companiesUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/companies.txt"
     $mainBannerUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/mainbanner.txt"
+    $motdUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/motd.txt"
 
     $destCompanies = Join-Path $UsbRoot "companies.txt"
     $destBanner = Join-Path $UsbRoot "mainbanner.txt"
+    $destMotd = Join-Path $UsbRoot "motd.txt"
 
     try {
         Invoke-WebRequest -Uri $companiesUrl -OutFile $destCompanies -UseBasicParsing -ErrorAction Stop
@@ -132,6 +109,16 @@ function Download-GlobalComponents {
         Write-Host "Error downloading mainbanner.txt: $_" -ForegroundColor Red
         Write-MainLog "Error downloading mainbanner.txt: $_"
     }
+
+    try {
+        Invoke-WebRequest -Uri $motdUrl -OutFile $destMotd -UseBasicParsing -ErrorAction Stop
+        Write-Host "Downloaded motd.txt to $destMotd" -ForegroundColor Green
+        Write-MainLog "Downloaded motd.txt to $destMotd."
+    }
+    catch {
+        Write-Host "Error downloading motd.txt: $_" -ForegroundColor Red
+        Write-MainLog "Error downloading motd.txt: $_"
+    }
 }
 Download-GlobalComponents
 
@@ -139,13 +126,22 @@ Download-GlobalComponents
 # Interactive Menu Function
 # ----------------------------
 function Show-InteractiveMenu {
-    # Read banner from file in USB root
+    # Read banner from file in USB root (for mainbanner.txt)
     $bannerFile = Join-Path $UsbRoot "mainbanner.txt"
     if (Test-Path $bannerFile) {
         $bannerContent = Get-Content $bannerFile -Raw
     }
     else {
         $bannerContent = "== Universal Onboarding Script =="
+    }
+    
+    # Read Message of the Day from motd.txt
+    $motdFile = Join-Path $UsbRoot "motd.txt"
+    if (Test-Path $motdFile) {
+        $motdContent = Get-Content $motdFile -Raw
+    }
+    else {
+        $motdContent = "Welcome. Please select an available option below:"
     }
     
     # Build menu items from companies.txt in USB root
@@ -160,13 +156,12 @@ function Show-InteractiveMenu {
     $companies = Get-Content $companiesFile | Where-Object { $_.Trim() -ne "" } | Sort-Object
     $menuItems = $companies + "Quit"
 
-    # Clear screen and display banner and instructions
     Clear-Host
     [console]::SetCursorPosition(0, $BannerStartRow)
     Write-Host $bannerContent -ForegroundColor $BannerColor
 
     [console]::SetCursorPosition(0, $MessageBodyStartRow)
-    Write-Host "Please select one of the available options below:" -ForegroundColor $MenuDefaultForeground
+    Write-Host $motdContent -ForegroundColor $MenuDefaultForeground
 
     $selectedIndex = 0
     $exitMenu = $false
@@ -444,9 +439,8 @@ try {
     Write-Host "Launching $selectedOption onboarding script..." -ForegroundColor Cyan
     Write-Host "Using script file: $($companySetup.DeployPS1)" -ForegroundColor Cyan
     Write-MainLog "Launching deploy script for $selectedOption."
-    # Use the call operator (&) to execute the deploy script with the ConfigPath parameter.
+    # Use the call operator (&) to execute the deploy script with the ConfigPath and CompanyFolderName parameters.
     & $companySetup.DeployPS1 -ConfigPath (Join-Path $configPath $companySetup.FolderName) -CompanyFolderName $companySetup.FolderName
-
 }
 catch {
     Write-Host "Error launching company script: $_" -ForegroundColor Red

@@ -394,7 +394,7 @@ while (-not $confirmed) {
             $scriptsDir = Join-Path "$BaseDir\Company_Scripts" $companyFolderName
             Cleanup-CompanyFolders -bannerDir $bannerDir -scriptsDir $scriptsDir
             Write-Host "An error occurred during company setup: $_" -ForegroundColor Red
-            Write-MainLog "Error during company setup for $selectedOption: $_"
+            Write-MainLog "Error during company setup for $selectedOption $_"
             Write-Host "Press any key to return to the main menu..."
             $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
             # Loop will restart and show the interactive menu again.
@@ -449,7 +449,7 @@ try {
 }
 catch {
     Write-Host "Error launching company script: $_" -ForegroundColor Red
-    Write-MainLog "Error launching company script for $selectedOption: $_"
+    Write-MainLog "Error launching company script for $selectedOption $_"
     Write-Host "Press any key to exit..."
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     exit

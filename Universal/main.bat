@@ -3,28 +3,23 @@ setlocal EnableDelayedExpansion
 
 REM Set BASE to the directory where this batch file resides.
 set "BASE=%~dp0"
-
-REM Remove trailing backslash if present.
 if "%BASE:~-1%"=="\" set "BASE=%BASE:~0,-1%"
-
 echo BASE is %BASE%
 
 REM ----- Check if Winget is installed -----
 where winget >nul 2>&1
 if errorlevel 1 (
-    echo Winget is not installed. Attempting to install Winget...
-    REM Download Winget installer (App Installer package) from GitHub.
-    set "wingetInstaller=%TEMP%\AppInstaller.msixbundle"
-    powershell -Command "Invoke-WebRequest -Uri 'https://github.com/microsoft/winget-cli/releases/download/v1.2.5111/AppInstaller.msixbundle' -OutFile '%TEMP%\AppInstaller.msixbundle'"
-    if exist "%wingetInstaller%" (
-        echo Installing Winget...
-        powershell -Command "Add-AppxPackage -Path '%wingetInstaller%'"
-        timeout /t 5 >nul
-    ) else (
-        echo Failed to download Winget installer.
-        pause
-        exit /b
-    )
+    echo Winget is not installed. Installing winget using Microsoft script...
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ^
+      "$progressPreference = 'silentlyContinue';" ^
+      "$installDir = '%BASE%';" ^
+      "$latestWingetMsixBundleUri = (Invoke-RestMethod https://api.github.com/repos/microsoft/winget-cli/releases/latest).assets.browser_download_url | Where-Object { $_.EndsWith('.msixbundle') };" ^
+      "$latestWingetMsixBundle = $latestWingetMsixBundleUri.Split('/')[-1];" ^
+      "Write-Information 'Downloading winget to artifacts directory...';" ^
+      "Invoke-WebRequest -Uri $latestWingetMsixBundleUri -OutFile (Join-Path $installDir $latestWingetMsixBundle);" ^
+      "Invoke-WebRequest -Uri https://aka.ms/Microsoft.VCLibs.x64.14.00.Desktop.appx -OutFile (Join-Path $installDir 'Microsoft.VCLibs.x64.14.00.Desktop.appx');" ^
+      "Add-AppxPackage (Join-Path $installDir 'Microsoft.VCLibs.x64.14.00.Desktop.appx');" ^
+      "Add-AppxPackage (Join-Path $installDir $latestWingetMsixBundle);"
 ) else (
     echo Winget is installed.
 )

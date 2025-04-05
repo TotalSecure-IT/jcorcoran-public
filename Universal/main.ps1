@@ -445,7 +445,8 @@ try {
     Write-Host "Using script file: $($companySetup.DeployPS1)" -ForegroundColor Cyan
     Write-MainLog "Launching deploy script for $selectedOption."
     # Use the call operator (&) to execute the deploy script with the ConfigPath parameter.
-    & $companySetup.DeployPS1 -ConfigPath (Join-Path $configPath $companySetup.FolderName)
+    & $companySetup.DeployPS1 -ConfigPath (Join-Path $configPath $companySetup.FolderName) -CompanyFolderName $companySetup.FolderName
+
 }
 catch {
     Write-Host "Error launching company script: $_" -ForegroundColor Red

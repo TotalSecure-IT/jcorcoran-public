@@ -1,5 +1,6 @@
 param(
-    [string]$ConfigPath
+    [string]$ConfigPath,
+    [string]$CompanyFolderName
 )
 
 # ====================
@@ -180,13 +181,8 @@ function global:Set-CursorPosition {
 function global:Render-Banner {
     Set-CursorPosition -Row 1 -Column 1
     try {
-        # Use the global USB root if set and mainbanner.txt exists there; otherwise, use $PSScriptRoot.
-        if ($global:UsbRoot -and (Test-Path (Join-Path $global:UsbRoot "mainbanner.txt"))) {
-            $bannerFile = Join-Path $global:UsbRoot "mainbanner.txt"
-        }
-        else {
-            $bannerFile = Join-Path $PSScriptRoot "banner.txt"
-        }
+        # Construct the path to the banner.txt file using the fixed base path and the company folder name.
+        $bannerFile = Join-Path "C:\TotalSecureUOBS\Company_Banners\$CompanyFolderName" "banner.txt"
         if (Test-Path $bannerFile) {
             $bannerLines = Get-Content $bannerFile -Encoding UTF8
             $bannerColors = @("DarkBlue", "Blue", "DarkCyan", "DarkGreen", "Green", "Cyan", "Gray", "DarkGray", "Green", "DarkGreen")

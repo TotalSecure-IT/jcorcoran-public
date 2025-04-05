@@ -1,14 +1,14 @@
+param(
+    [string]$UsbRoot
+)
+
+# Remove any extraneous quotes from the passed USB root path.
+$UsbRoot = $UsbRoot.Trim('"')
+
 # ========================================================
 # Universal Onboarding Script Main Module
 # Run this script with: powershell.exe -ExecutionPolicy Bypass -File .\UniversalOnboarding.ps1
 # ========================================================
-
-param(
-    [string]$UsbRoot
-)
-# Later when launching deploy.ps1:
-$configPath = Join-Path $UsbRoot "configs"
-. $companySetup.DeployPS1 -ConfigPath (Join-Path $configPath $companySetup.FolderName)
 
 # ----------------------------
 # Customization Settings
@@ -344,6 +344,10 @@ $deploymentConfig = @{
 # ----------------------------
 # Launch Company-Specific Script
 # ----------------------------
+
+# Determine the config path on the USB drive.
+$configPath = Join-Path $UsbRoot "configs"
+
 Clear-Host
 try {
     Write-Host "Launching $selectedOption onboarding script..." -ForegroundColor Cyan

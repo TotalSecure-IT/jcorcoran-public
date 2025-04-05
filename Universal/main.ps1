@@ -3,6 +3,13 @@
 # Run this script with: powershell.exe -ExecutionPolicy Bypass -File .\UniversalOnboarding.ps1
 # ========================================================
 
+param(
+    [string]$UsbRoot
+)
+# Later when launching deploy.ps1:
+$configPath = Join-Path $UsbRoot "configs"
+. $companySetup.DeployPS1 -ConfigPath (Join-Path $configPath $companySetup.FolderName)
+
 # ----------------------------
 # Customization Settings
 # ----------------------------

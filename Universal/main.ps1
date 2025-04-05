@@ -348,8 +348,8 @@ Clear-Host
 try {
     Write-Host "Launching $selectedOption onboarding script..." -ForegroundColor Cyan
     Write-Host "Using script file: $($companySetup.DeployPS1)" -ForegroundColor Cyan
-    # Dot-source the company-specific deploy.ps1 so it runs in the same PowerShell session.
-    . $companySetup.DeployPS1
+    # Use the call operator (&) to execute the deploy script with the ConfigPath parameter.
+    & $companySetup.DeployPS1 -ConfigPath (Join-Path $configPath $companySetup.FolderName)
 }
 catch {
     Write-Host "Error launching company script: $_" -ForegroundColor Red

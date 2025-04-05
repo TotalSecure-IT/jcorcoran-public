@@ -1,3 +1,10 @@
+param(
+    [string]$UsbRoot
+)
+
+# Remove any extraneous quotes from the passed USB root path.
+$UsbRoot = $UsbRoot.Trim('"')
+
 # ========================================================
 # Universal Onboarding Script Main Module
 # Run this script with: powershell.exe -ExecutionPolicy Bypass -File .\UniversalOnboarding.ps1
@@ -337,12 +344,16 @@ $deploymentConfig = @{
 # ----------------------------
 # Launch Company-Specific Script
 # ----------------------------
+
+# Determine the config path on the USB drive.
+$configPath = Join-Path $UsbRoot "configs"
+
 Clear-Host
 try {
     Write-Host "Launching $selectedOption onboarding script..." -ForegroundColor Cyan
     Write-Host "Using script file: $($companySetup.DeployPS1)" -ForegroundColor Cyan
-    # Dot-source the company-specific deploy.ps1 so it runs in the same PowerShell session.
-    . $companySetup.DeployPS1
+    # Use the call operator (&) to execute the deploy script with the ConfigPath parameter.
+    & $companySetup.DeployPS1 -ConfigPath (Join-Path $configPath $companySetup.FolderName)
 }
 catch {
     Write-Host "Error launching company script: $_" -ForegroundColor Red

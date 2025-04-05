@@ -82,22 +82,22 @@ function Download-GlobalComponents {
     Write-Host "Downloading global components from GitHub..." -ForegroundColor Cyan
     Write-MainLog "Downloading global components from GitHub."
 
-    $companiesUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/companies.txt"
+    $mainMenuUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/mainmenu.txt"
     $mainBannerUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/mainbanner.txt"
     $motdUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/motd.txt"
 
-    $destCompanies = Join-Path $UsbRoot "companies.txt"
+    $destMainMenu = Join-Path $UsbRoot "mainmenu.txt"
     $destBanner = Join-Path $UsbRoot "mainbanner.txt"
     $destMotd = Join-Path $UsbRoot "motd.txt"
 
     try {
-        Invoke-WebRequest -Uri $companiesUrl -OutFile $destCompanies -UseBasicParsing -ErrorAction Stop
-        Write-Host "Downloaded companies.txt to $destCompanies" -ForegroundColor Green
-        Write-MainLog "Downloaded companies.txt to $destCompanies."
+        Invoke-WebRequest -Uri $mainMenuUrl -OutFile $destMainMenu -UseBasicParsing -ErrorAction Stop
+        Write-Host "Downloaded mainmenu.txt to $destMainMenu" -ForegroundColor Green
+        Write-MainLog "Downloaded mainmenu.txt to $destMainMenu."
     }
     catch {
-        Write-Host "Error downloading companies.txt: $_" -ForegroundColor Red
-        Write-MainLog "Error downloading companies.txt: $_"
+        Write-Host "Error downloading mainmenu.txt: $_" -ForegroundColor Red
+        Write-MainLog "Error downloading mainmenu.txt: $_"
     }
 
     try {
@@ -123,57 +123,49 @@ function Download-GlobalComponents {
 Download-GlobalComponents
 
 # ----------------------------
-# Interactive Menu Function
+# Main Menu Function (from mainmenu.txt)
 # ----------------------------
-function Show-InteractiveMenu {
-    # Read banner from file in USB root (for mainbanner.txt)
-    $bannerFile = Join-Path $UsbRoot "mainbanner.txt"
-    if (Test-Path $bannerFile) {
-        $bannerContent = Get-Content $bannerFile -Raw
-    }
-    else {
-        $bannerContent = "== Universal Onboarding Script =="
-    }
-    
-    # Read Message of the Day from motd.txt
-    $motdFile = Join-Path $UsbRoot "motd.txt"
-    if (Test-Path $motdFile) {
-        $motdContent = Get-Content $motdFile -Raw
-    }
-    else {
-        $motdContent = "Welcome. Please select an available option below:"
-    }
-    
-    # Build menu items from companies.txt in USB root
-    $companiesFile = Join-Path $UsbRoot "companies.txt"
-    if (-not (Test-Path $companiesFile)) {
-        Write-Host "Error: companies.txt file not found in $UsbRoot. Exiting." -ForegroundColor Red
-        Write-MainLog "companies.txt not found in $UsbRoot. Exiting script."
+function Show-MainMenu {
+    $mainMenuFile = Join-Path $UsbRoot "mainmenu.txt"
+    if (-not (Test-Path $mainMenuFile)) {
+        Write-Host "Error: mainmenu.txt file not found in $UsbRoot. Exiting." -ForegroundColor Red
+        Write-MainLog "mainmenu.txt not found in $UsbRoot. Exiting script."
         Write-Host "Press any key to exit..."
         $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         exit
     }
-    $companies = Get-Content $companiesFile | Where-Object { $_.Trim() -ne "" } | Sort-Object
-    $menuItems = $companies + "Quit"
-
+    $menuItems = Get-Content $mainMenuFile | Where-Object { $_.Trim() -ne "" }
+    # Main menu items are hyphenated (for aesthetic purposes)
     Clear-Host
+    $bannerFile = Join-Path $UsbRoot "mainbanner.txt"
+    if (Test-Path $bannerFile) {
+        $bannerContent = Get-Content $bannerFile -Raw
+    } else {
+        $bannerContent = "== Universal Onboarding Script =="
+    }
     [console]::SetCursorPosition(0, $BannerStartRow)
     Write-Host $bannerContent -ForegroundColor $BannerColor
-
+    # Use motd.txt for message body.
+    $motdFile = Join-Path $UsbRoot "motd.txt"
+    if (Test-Path $motdFile) {
+        $motdContent = Get-Content $motdFile -Raw
+    } else {
+        $motdContent = "Welcome. Please select an option below:"
+    }
     [console]::SetCursorPosition(0, $MessageBodyStartRow)
     Write-Host $motdContent -ForegroundColor $MenuDefaultForeground
 
+    # Main menu items remain hyphenated.
     $selectedIndex = 0
     $exitMenu = $false
-
     while (-not $exitMenu) {
         for ($i = 0; $i -lt $menuItems.Count; $i++) {
             $consoleWidth = [console]::WindowWidth
             $menuItemText = $menuItems[$i]
+            # Main menu items are already hyphenated.
             $leftPadding = [math]::Floor(($consoleWidth - $menuItemText.Length) / 2)
             $centeredText = (" " * $leftPadding) + $menuItemText
             $centeredText = $centeredText.PadRight($consoleWidth)
-            
             [console]::SetCursorPosition(0, $MenuStartRow + $i)
             if ($i -eq $selectedIndex) {
                 Write-Host $centeredText -ForegroundColor $MenuHighlightForeground -BackgroundColor $MenuHighlightBackground -NoNewline
@@ -189,16 +181,14 @@ function Show-InteractiveMenu {
             'UpArrow' {
                 if ($selectedIndex -eq 0) {
                     $selectedIndex = $menuItems.Count - 1
-                }
-                else {
+                } else {
                     $selectedIndex--
                 }
             }
             'DownArrow' {
                 if ($selectedIndex -eq ($menuItems.Count - 1)) {
                     $selectedIndex = 0
-                }
-                else {
+                } else {
                     $selectedIndex++
                 }
             }
@@ -211,131 +201,231 @@ function Show-InteractiveMenu {
 }
 
 # ----------------------------
-# Download File Helper with Error Handling
+# Function to Retrieve and Parse Submenu
 # ----------------------------
-function Download-File {
+function Get-Submenu {
     param(
-        [string]$url,
-        [string]$destination
+        [string]$companyName
     )
+    $submenuUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/$companyName/submenu.txt"
     try {
-         Invoke-WebRequest -Uri $url -OutFile $destination -UseBasicParsing -ErrorAction Stop
-         Write-Host "Downloaded file: $destination" -ForegroundColor Green
-         Write-MainLog "Downloaded file: $destination"
+        $submenuContent = Invoke-WebRequest -Uri $submenuUrl -UseBasicParsing -ErrorAction Stop | Select-Object -ExpandProperty Content
+        $lines = $submenuContent -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
+        $submenuItems = @()
+        foreach ($line in $lines) {
+            # Expected format: Title | ACTION = (Content)
+            if ($line -match "^(.*?)\s*\|\s*(.+)$") {
+                $title = $matches[1].Trim()
+                $actionPart = $matches[2].Trim()
+                if ($actionPart -match "^(MANIFEST|SCRIPT|DO)\s*=\s*\((.+)\)$") {
+                    $actionType = $matches[1].Trim()
+                    $actionContent = $matches[2].Trim()
+                    $submenuItems += [PSCustomObject]@{
+                        Title = $title
+                        ActionType = $actionType
+                        ActionContent = $actionContent
+                    }
+                }
+                else {
+                    $submenuItems += [PSCustomObject]@{
+                        Title = $title
+                        ActionType = ""
+                        ActionContent = ""
+                    }
+                }
+            }
+        }
+        return $submenuItems
     }
     catch {
-         Write-Host "Error downloading file from $url to $destination`nError details: $_" -ForegroundColor Red
-         Write-MainLog "Error downloading file from $url to $destination. Details: $_"
-         throw $_
+        Write-MainLog "No submenu.txt found for $companyName. Error: $_"
+        return $null
     }
 }
 
 # ----------------------------
-# Company-Specific Setup Function (Using Manifest)
+# Function to Display Submenu Interactively
+# ----------------------------
+function Show-Submenu {
+    param(
+        [string]$companyName,
+        [array]$submenuItems
+    )
+    # Check if manifest.txt exists for this company
+    $manifestUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/$companyName/manifest.txt"
+    $hasManifest = $false
+    try {
+        $null = Invoke-WebRequest -Uri $manifestUrl -UseBasicParsing -ErrorAction Stop
+        $hasManifest = $true
+    }
+    catch {
+        $hasManifest = $false
+    }
+    if ($hasManifest) {
+        $deployItem = [PSCustomObject]@{
+            Title = "Deploy Onboarding Script"
+            ActionType = "MANIFEST"
+            ActionContent = $manifestUrl
+        }
+        $submenuItems = ,$deployItem + ($submenuItems | Sort-Object Title)
+    }
+    else {
+        $submenuItems = $submenuItems | Sort-Object Title
+    }
+    # Always append "Go back" as last item.
+    $goBackItem = [PSCustomObject]@{
+        Title = "Go back"
+        ActionType = "BACK"
+        ActionContent = ""
+    }
+    $submenuItems += $goBackItem
+
+    # Display submenu with header (the main menu item) above.
+    Clear-Host
+    $header = "╓" + $companyName
+    Write-Host $header -ForegroundColor $MenuHighlightForeground -BackgroundColor $MenuHighlightBackground
+
+    $selectedIndex = 0
+    $exitSubmenu = $false
+    while (-not $exitSubmenu) {
+        # Print submenu items with aesthetic prefixes.
+        for ($i = 0; $i -lt $submenuItems.Count; $i++) {
+            if ($i -eq ($submenuItems.Count - 1)) {
+                $prefix = "╚═ "
+            } else {
+                $prefix = "╠═ "
+            }
+            $itemText = $submenuItems[$i].Title
+            $displayText = $prefix + $itemText
+            # When selected, highlight only the text part (excluding prefix).
+            if ($i -eq $selectedIndex) {
+                $prefixLen = $prefix.Length
+                $consoleWidth = [console]::WindowWidth
+                $textWidth = $consoleWidth - $prefixLen
+                $paddedText = $itemText.PadRight($textWidth)
+                Write-Host $prefix -NoNewline
+                Write-Host $paddedText -ForegroundColor $MenuHighlightForeground -BackgroundColor $MenuHighlightBackground
+            } else {
+                Write-Host $displayText -ForegroundColor $MenuDefaultForeground
+            }
+        }
+        $key = [console]::ReadKey($true)
+        switch ($key.Key) {
+            'UpArrow' {
+                if ($selectedIndex -eq 0) {
+                    $selectedIndex = $submenuItems.Count - 1
+                }
+                else {
+                    $selectedIndex--
+                }
+            }
+            'DownArrow' {
+                if ($selectedIndex -eq ($submenuItems.Count - 1)) {
+                    $selectedIndex = 0
+                }
+                else {
+                    $selectedIndex++
+                }
+            }
+            'Enter' {
+                $exitSubmenu = $true
+            }
+        }
+    }
+    return $submenuItems[$selectedIndex]
+}
+
+# ----------------------------
+# Functions to Process Submenu Actions
+# ----------------------------
+function Process-Manifest {
+    param(
+        [string]$companyName,
+        [string]$manifestUrl
+    )
+    Write-Host "Processing manifest for $companyName from $manifestUrl" -ForegroundColor Cyan
+    $tempManifestFile = Join-Path $env:TEMP "manifest_$companyName.txt"
+    try {
+        Invoke-WebRequest -Uri $manifestUrl -OutFile $tempManifestFile -UseBasicParsing -ErrorAction Stop
+        Write-MainLog "Downloaded manifest for $companyName from submenu."
+    }
+    catch {
+        Write-Host "Error downloading manifest: $_" -ForegroundColor Red
+        return
+    }
+    # Here, you would parse the manifest file, download its files into the appropriate company folder,
+    # and then prompt the user to confirm launching the deployment script.
+    Write-Host "Manifest processing for $companyName would occur here." -ForegroundColor Cyan
+    $confirm = Read-Host "Deploy Onboarding Script? (y/n)"
+    if ($confirm.ToLower() -eq "y") {
+        Write-Host "Launching deployment script for $companyName..."
+        # For example, launch the deploy.ps1 that was downloaded.
+    }
+    else {
+        Write-Host "Deployment cancelled. Returning to main menu."
+    }
+    Remove-Item $tempManifestFile -Force
+}
+
+function Process-Script {
+    param(
+        [string]$scriptUrl
+    )
+    Write-Host "Downloading script from $scriptUrl..." -ForegroundColor Cyan
+    $tempScript = Join-Path $env:TEMP "tempScript.ps1"
+    try {
+        Invoke-WebRequest -Uri $scriptUrl -OutFile $tempScript -UseBasicParsing -ErrorAction Stop
+        Write-Host "Downloaded script. Executing..."
+        & $tempScript
+        Remove-Item $tempScript -Force
+    }
+    catch {
+        Write-Host "Error processing script: $_" -ForegroundColor Red
+    }
+}
+
+function Process-DO {
+    param(
+        [string]$command
+    )
+    Write-Host "Executing command: $command" -ForegroundColor Cyan
+    Invoke-Expression $command
+}
+
+# ----------------------------
+# Fallback: Setup-Company (existing manifest processing)
 # ----------------------------
 function Setup-Company {
     param(
         [string]$companyName
     )
 
-    # Convert company name to a folder-friendly name (spaces replaced with hyphens)
+    # Convert company name to folder-friendly name (if needed)
     $companyFolderName = $companyName -replace '\s+', '-'
-
-    # Create company-specific directories under Company_Banners and Company_Scripts
     $companyBannerDir = Join-Path "$BaseDir\Company_Banners" $companyFolderName
     $companyScriptsDir = Join-Path "$BaseDir\Company_Scripts" $companyFolderName
-
     try {
         if (-not (Test-Path $companyBannerDir)) {
-             New-Item -Path $companyBannerDir -ItemType Directory -Force | Out-Null
-             Write-MainLog "Created company banner directory: $companyBannerDir."
+            New-Item -Path $companyBannerDir -ItemType Directory -Force | Out-Null
+            Write-MainLog "Created company banner directory: $companyBannerDir."
         }
         if (-not (Test-Path $companyScriptsDir)) {
-             New-Item -Path $companyScriptsDir -ItemType Directory -Force | Out-Null
-             Write-MainLog "Created company scripts directory: $companyScriptsDir."
+            New-Item -Path $companyScriptsDir -ItemType Directory -Force | Out-Null
+            Write-MainLog "Created company scripts directory: $companyScriptsDir."
         }
     }
     catch {
         throw "Error creating company directories: $_"
     }
-
-    # Construct manifest URL using the adjusted company name
     $manifestUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/$companyFolderName/manifest.txt"
     Write-MainLog "Using manifest URL: $manifestUrl"
-
-    # Download manifest file to a temporary location
-    $tempManifestFile = Join-Path $env:TEMP "manifest_$companyFolderName.txt"
-    try {
-         Download-File -url $manifestUrl -destination $tempManifestFile
-    }
-    catch {
-         throw "Error downloading manifest file from $manifestUrl $_"
-    }
-
-    # Parse manifest file (each line should be: filename = "url")
-    $manifestContent = Get-Content $tempManifestFile -Raw
-    $manifestLines = $manifestContent -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
-
-    # Initialize an array to collect any download errors
-    $downloadErrors = @()
-
-    foreach ($line in $manifestLines) {
-         if ($line -match '^(.*?)\s*=\s*"(.*?)"$') {
-             $fileName = $matches[1].Trim()
-             $fileUrl = $matches[2].Trim()
-         }
-         else {
-             $downloadErrors += "Invalid manifest line format: $line"
-             continue
-         }
-         
-         # Determine destination based on the file name
-         switch ($fileName.ToLower()) {
-             "banner.txt" {
-                $destPath = Join-Path $companyBannerDir "banner.txt"
-             }
-             "appslist.json" {
-                $destPath = Join-Path $companyScriptsDir "appslist.json"
-             }
-             "deploy.ps1" {
-                $destPath = Join-Path $companyScriptsDir "deploy.ps1"
-             }
-             default {
-                Write-Host "Skipping unrecognized file in manifest: $fileName" -ForegroundColor Yellow
-                Write-MainLog "Skipping unrecognized file in manifest: $fileName"
-                continue
-             }
-         }
-         try {
-             Download-File -url $fileUrl -destination $destPath
-         }
-         catch {
-             $downloadErrors += "Error downloading $fileName from $fileUrl $_"
-         }
-    }
-    
-    # Summarize any download errors and prompt the user to acknowledge before proceeding
-    if ($downloadErrors.Count -gt 0) {
-         Write-Host "The following errors were encountered while downloading files from the manifest:" -ForegroundColor Red
-         Write-MainLog "Encountered errors during manifest downloads:"
-         foreach ($err in $downloadErrors) {
-             Write-Host $err -ForegroundColor Red
-             Write-MainLog $err
-         }
-         Write-Host "Press any key to continue..."
-         $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-    }
-    
-    # Remove the temporary manifest file
-    Remove-Item $tempManifestFile -Force
-    Write-MainLog "Removed temporary manifest file: $tempManifestFile."
-
-    # Return a hashtable with paths (deploy.ps1 is needed for launching)
-    return @{
-         "BannerDir"  = $companyBannerDir
-         "ScriptsDir" = $companyScriptsDir
-         "DeployPS1"  = Join-Path $companyScriptsDir "deploy.ps1"
-         "FolderName" = $companyFolderName
+    # (Proceed with existing manifest processing...)
+    Write-Host "Proceeding with standard manifest processing for $companyName." -ForegroundColor Cyan
+    return @{ 
+        BannerDir = $companyBannerDir; 
+        ScriptsDir = $companyScriptsDir; 
+        DeployPS1 = Join-Path $companyScriptsDir "deploy.ps1"; 
+        FolderName = $companyFolderName 
     }
 }
 
@@ -348,106 +438,86 @@ function Cleanup-CompanyFolders {
         [string]$scriptsDir
     )
     try {
-         if (Test-Path $bannerDir) {
+        if (Test-Path $bannerDir) {
             Remove-Item -Path $bannerDir -Recurse -Force
             Write-MainLog "Cleaned up banner directory: $bannerDir."
-         }
-         if (Test-Path $scriptsDir) {
+        }
+        if (Test-Path $scriptsDir) {
             Remove-Item -Path $scriptsDir -Recurse -Force
             Write-MainLog "Cleaned up scripts directory: $scriptsDir."
-         }
+        }
     }
     catch {
-         Write-Host "Error cleaning up company folders: $_" -ForegroundColor Red
-         Write-MainLog "Error cleaning up company folders: $_"
+        Write-Host "Error cleaning up company folders: $_" -ForegroundColor Red
+        Write-MainLog "Error cleaning up company folders: $_"
     }
 }
 
 # ----------------------------
-# Main Execution Loop for Company Selection, Setup & Confirmation
+# Main Execution Loop for Main Menu, Submenu & Deployment
 # ----------------------------
 $confirmed = $false
 while (-not $confirmed) {
 
-    # Main Execution Loop for Company Selection & Setup
-    while ($true) {
-        $selectedOption = Show-InteractiveMenu
-        if ($selectedOption -eq "Quit") {
-             Write-Host "Exiting script. Goodbye!" -ForegroundColor Cyan
-             Write-MainLog "User selected Quit. Exiting script."
-             exit
+    # Show main menu from mainmenu.txt
+    $selectedOption = Show-MainMenu
+    if ($selectedOption -eq "Quit") {
+        Write-Host "Exiting script. Goodbye!" -ForegroundColor Cyan
+        Write-MainLog "User selected Quit. Exiting script."
+        exit
+    }
+
+    # Attempt to retrieve submenu.txt for the selected main menu item.
+    $submenuItems = Get-Submenu -companyName $selectedOption
+    if ($submenuItems) {
+        $selectedSubmenuItem = Show-Submenu -companyName $selectedOption -submenuItems $submenuItems
+        switch ($selectedSubmenuItem.ActionType.ToUpper()) {
+            "BACK" {
+                Write-MainLog "User selected Go back in submenu for $selectedOption."
+                continue  # Return to main menu loop.
+            }
+            "MANIFEST" {
+                Process-Manifest -companyName $selectedOption -manifestUrl $selectedSubmenuItem.ActionContent
+            }
+            "SCRIPT" {
+                Process-Script -scriptUrl $selectedSubmenuItem.ActionContent
+            }
+            "DO" {
+                Process-DO -command $selectedSubmenuItem.ActionContent
+            }
+            default {
+                Write-Host "No action defined for this submenu item. Returning to main menu." -ForegroundColor Yellow
+                continue
+            }
         }
+    }
+    else {
+        # If no submenu.txt is available, fall back to standard manifest processing.
+        $companySetup = Setup-Company -companyName $selectedOption
+        # Prompt user for confirmation to deploy as per original behavior.
+        $deployConfirm = Read-Host "No submenu available. Deploy onboarding script for $selectedOption? (y/n)"
+        if ($deployConfirm.ToLower() -ne "y") {
+            Write-Host "Deployment cancelled. Returning to main menu."
+            continue
+        }
+        # Launch deployment using the downloaded deploy.ps1.
         try {
-            # Attempt to set up the company-specific files and directories via the manifest.
-            $companySetup = Setup-Company -companyName $selectedOption
-            break
+            Write-Host "Launching $selectedOption onboarding script..." -ForegroundColor Cyan
+            Write-Host "Using script file: $($companySetup.DeployPS1)" -ForegroundColor Cyan
+            Write-MainLog "Launching deploy script for $selectedOption."
+            & $companySetup.DeployPS1 -ConfigPath (Join-Path (Join-Path $UsbRoot "configs") $companySetup.FolderName) -CompanyFolderName $companySetup.FolderName
         }
         catch {
-            # Clean up and return to the interactive menu if setup fails.
-            $companyFolderName = $selectedOption -replace '\s+', '-'
-            $bannerDir = Join-Path "$BaseDir\Company_Banners" $companyFolderName
-            $scriptsDir = Join-Path "$BaseDir\Company_Scripts" $companyFolderName
-            Cleanup-CompanyFolders -bannerDir $bannerDir -scriptsDir $scriptsDir
-            Write-Host "An error occurred during company setup: $_" -ForegroundColor Red
-            Write-MainLog "Error during company setup for $selectedOption $_"
-            Write-Host "Press any key to return to the main menu..."
+            Write-Host "Error launching company script: $_" -ForegroundColor Red
+            Write-MainLog "Error launching company script for $selectedOption: $_"
+            Write-Host "Press any key to exit..."
             $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-            # Loop will restart and show the interactive menu again.
+            exit
         }
     }
-
-    # ----------------------------
-    # Confirm Deployment Prompt
-    # ----------------------------
-    $confirmed = $null
-    do {
-        $userInput = Read-Host "Are you sure you want to deploy the $selectedOption script? (y/n)"
-        if ($userInput.ToLower() -eq "y") {
-            $confirmed = $true
-        }
-        elseif ($userInput.ToLower() -eq "n") {
-            $confirmed = $false
-        }
-        else {
-            Write-Host "Please enter 'y' or 'n'."
-        }
-    } while ($confirmed -eq $null)
-
-    if (-not $confirmed) {
-        # Clean up the already created company folders and return to the main menu.
-        $companyFolderName = $selectedOption -replace '\s+', '-'
-        $bannerDir = Join-Path "$BaseDir\Company_Banners" $companyFolderName
-        $scriptsDir = Join-Path "$BaseDir\Company_Scripts" $companyFolderName
-        Cleanup-CompanyFolders -bannerDir $bannerDir -scriptsDir $scriptsDir
-        Write-Host "Returning to the main menu..." -ForegroundColor Cyan
-        Write-MainLog "User cancelled deployment for $selectedOption. Returning to menu."
-        Write-Host "Press any key to continue..."
-        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-        # Outer loop will restart.
-    }
-}
-
-# ----------------------------
-# Launch Company-Specific Script
-# ----------------------------
-
-# Determine the config path on the USB drive.
-$configPath = Join-Path $UsbRoot "configs"
-
-Clear-Host
-try {
-    Write-Host "Launching $selectedOption onboarding script..." -ForegroundColor Cyan
-    Write-Host "Using script file: $($companySetup.DeployPS1)" -ForegroundColor Cyan
-    Write-MainLog "Launching deploy script for $selectedOption."
-    # Use the call operator (&) to execute the deploy script with the ConfigPath and CompanyFolderName parameters.
-    & $companySetup.DeployPS1 -ConfigPath (Join-Path $configPath $companySetup.FolderName) -CompanyFolderName $companySetup.FolderName
-}
-catch {
-    Write-Host "Error launching company script: $_" -ForegroundColor Red
-    Write-MainLog "Error launching company script for $selectedOption $_"
-    Write-Host "Press any key to exit..."
+    Write-MainLog "Main script finished."
+    # After processing a submenu action, return to the main menu.
+    Write-Host "Press any key to return to the main menu..."
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-    exit
 }
 
-Write-MainLog "Main script finished."

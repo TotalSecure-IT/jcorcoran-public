@@ -1,3 +1,7 @@
+param(
+    [string]$ConfigPath
+)
+
 # ====================
 # INITIAL SETUP & LOGGING
 # ====================
@@ -65,10 +69,15 @@ function Convert-IniToHashtable {
     return $ini
 }
 
-# Load our config file (make sure this file is safe and not public)
-$configFile = Join-Path $PSScriptRoot "config.ini"
+# Load our config file from the dynamic location if provided, else from $PSScriptRoot.
+if ($ConfigPath) {
+    $configFile = Join-Path $ConfigPath "config.ini"
+} else {
+    $configFile = Join-Path $PSScriptRoot "config.ini"
+}
+
 if (-not (Test-Path $configFile)) {
-    Write-Log "Config file not found. Exiting."
+    Write-Log "Config file not found at $configFile. Exiting."
     exit 1
 }
 $config = Convert-IniToHashtable -Path $configFile

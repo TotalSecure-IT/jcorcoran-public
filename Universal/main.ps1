@@ -106,7 +106,32 @@ Write-MainLog "Set working directory to $BaseDir."
 function Download-GlobalComponents {
     Write-Host "Downloading global components from GitHub..." -ForegroundColor Cyan
     Write-MainLog "Downloading global components from GitHub."
-    # Placeholder for any non-company-specific downloads.
+
+    $companiesUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/companies.txt"
+    $mainBannerUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/mainbanner.txt"
+
+    $destCompanies = Join-Path $UsbRoot "companies.txt"
+    $destBanner = Join-Path $UsbRoot "mainbanner.txt"
+
+    try {
+        Invoke-WebRequest -Uri $companiesUrl -OutFile $destCompanies -UseBasicParsing -ErrorAction Stop
+        Write-Host "Downloaded companies.txt to $destCompanies" -ForegroundColor Green
+        Write-MainLog "Downloaded companies.txt to $destCompanies."
+    }
+    catch {
+        Write-Host "Error downloading companies.txt: $_" -ForegroundColor Red
+        Write-MainLog "Error downloading companies.txt: $_"
+    }
+
+    try {
+        Invoke-WebRequest -Uri $mainBannerUrl -OutFile $destBanner -UseBasicParsing -ErrorAction Stop
+        Write-Host "Downloaded mainbanner.txt to $destBanner" -ForegroundColor Green
+        Write-MainLog "Downloaded mainbanner.txt to $destBanner."
+    }
+    catch {
+        Write-Host "Error downloading mainbanner.txt: $_" -ForegroundColor Red
+        Write-MainLog "Error downloading mainbanner.txt: $_"
+    }
 }
 Download-GlobalComponents
 
@@ -114,8 +139,8 @@ Download-GlobalComponents
 # Interactive Menu Function
 # ----------------------------
 function Show-InteractiveMenu {
-    # Read banner from file (mainbanner.txt)
-    $bannerFile = ".\mainbanner.txt"
+    # Read banner from file in USB root
+    $bannerFile = Join-Path $UsbRoot "mainbanner.txt"
     if (Test-Path $bannerFile) {
         $bannerContent = Get-Content $bannerFile -Raw
     }
@@ -123,11 +148,11 @@ function Show-InteractiveMenu {
         $bannerContent = "== Universal Onboarding Script =="
     }
     
-    # Build menu items from companies.txt (one company per line)
-    $companiesFile = ".\companies.txt"
+    # Build menu items from companies.txt in USB root
+    $companiesFile = Join-Path $UsbRoot "companies.txt"
     if (-not (Test-Path $companiesFile)) {
-        Write-Host "Error: companies.txt file not found. Exiting." -ForegroundColor Red
-        Write-MainLog "companies.txt not found. Exiting script."
+        Write-Host "Error: companies.txt file not found in $UsbRoot. Exiting." -ForegroundColor Red
+        Write-MainLog "companies.txt not found in $UsbRoot. Exiting script."
         Write-Host "Press any key to exit..."
         $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         exit
@@ -369,7 +394,7 @@ while (-not $confirmed) {
             $scriptsDir = Join-Path "$BaseDir\Company_Scripts" $companyFolderName
             Cleanup-CompanyFolders -bannerDir $bannerDir -scriptsDir $scriptsDir
             Write-Host "An error occurred during company setup: $_" -ForegroundColor Red
-            Write-MainLog "Error during company setup for $selectedOption $_"
+            Write-MainLog "Error during company setup for $selectedOption: $_"
             Write-Host "Press any key to return to the main menu..."
             $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
             # Loop will restart and show the interactive menu again.
@@ -424,7 +449,7 @@ try {
 }
 catch {
     Write-Host "Error launching company script: $_" -ForegroundColor Red
-    Write-MainLog "Error launching company script for $selectedOption $_"
+    Write-MainLog "Error launching company script for $selectedOption: $_"
     Write-Host "Press any key to exit..."
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     exit

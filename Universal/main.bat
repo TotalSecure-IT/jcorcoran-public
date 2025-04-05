@@ -9,20 +9,15 @@ echo BASE is %BASE%
 REM ----- Check if Winget is installed -----
 where winget >nul 2>&1
 if errorlevel 1 (
-    echo Winget is not installed. Installing winget using Microsoft script...
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ^
-      "$progressPreference = 'silentlyContinue';" ^
-      "$installDir = '%BASE%';" ^
-      "$latestWingetMsixBundleUri = (Invoke-RestMethod https://api.github.com/repos/microsoft/winget-cli/releases/latest).assets.browser_download_url | Where-Object { $_.EndsWith('.msixbundle') };" ^
-      "$latestWingetMsixBundle = $latestWingetMsixBundleUri.Split('/')[-1];" ^
-      "Write-Information 'Downloading winget to artifacts directory...';" ^
-      "Invoke-WebRequest -Uri $latestWingetMsixBundleUri -OutFile (Join-Path $installDir $latestWingetMsixBundle);" ^
-      "Invoke-WebRequest -Uri https://aka.ms/Microsoft.VCLibs.x64.14.00.Desktop.appx -OutFile (Join-Path $installDir 'Microsoft.VCLibs.x64.14.00.Desktop.appx');" ^
-      "Add-AppxPackage (Join-Path $installDir 'Microsoft.VCLibs.x64.14.00.Desktop.appx');" ^
-      "Add-AppxPackage (Join-Path $installDir $latestWingetMsixBundle);"
+    echo Winget is not installed. Installing Winget using external script...
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "irm 'https://github.com/asheroto/winget-install/releases/latest/download/winget-install.ps1' | iex"
 ) else (
     echo Winget is installed.
 )
+
+REM ----- Disable msstore source to bypass agreement prompt -----
+echo Disabling msstore source to bypass agreement prompt...
+winget source disable msstore
 
 REM ----- Check if PowerShell 7 is installed -----
 if exist "C:\Program Files\PowerShell\7\pwsh.exe" (

@@ -1,1 +1,3 @@
-powershell.exe -ExecutionPolicy Bypass -File "D:\DATA\GitHub\jcorcoran\Universal\main.ps1"
+@echo off
+set BASE=%~dp0
+powershell.exe -ExecutionPolicy Bypass -NoProfile -File "%BASE%\main.ps1" -UsbRoot "%BASE%"

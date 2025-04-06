@@ -10,15 +10,15 @@ param(
 # Create a new timestamp in the format "yyyy-MM-dd_HHmm"
 $timestamp = Get-Date -Format "yyyy-MM-dd_HHmm"
 
-# Determine the USB root: if $ConfigPath is provided, use its parent; otherwise, use $PSScriptRoot.
-if (-not $ConfigPath -or $ConfigPath -eq "") {
+# Determine the USB root: if $ConfigPath is provided and not empty, use its parent; otherwise, default to $PSScriptRoot.
+if ([string]::IsNullOrEmpty($ConfigPath)) {
     $usbroot = $PSScriptRoot
 } else {
     $usbroot = Split-Path $ConfigPath -Parent
 }
 
-# If CompanyFolderName is not provided, assign a default value.
-if (-not $CompanyFolderName -or $CompanyFolderName -eq "") {
+# Ensure CompanyFolderName is provided; if not, default to "DefaultCompany".
+if ([string]::IsNullOrEmpty($CompanyFolderName)) {
     Write-Host "CompanyFolderName parameter not provided. Defaulting to 'DefaultCompany'." -ForegroundColor Yellow
     $CompanyFolderName = "DefaultCompany"
 }

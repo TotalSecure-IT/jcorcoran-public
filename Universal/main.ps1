@@ -372,7 +372,7 @@ function Process-Manifest {
     
     $downloadedFiles = @()
     foreach ($line in $lines) {
-        if ($line -match "^(.*?)\s*=\s*\"(.*?)\("$") {
+        if ($line -match '^(.*?)\s*=\s*"(.*?)"$') {
             $filename = $matches[1].Trim()
             $fileUrl = $matches[2].Trim()
             if ($filename -ieq "banner.txt") {

@@ -19,17 +19,16 @@ if ([string]::IsNullOrEmpty($ConfigPath)) {
 }
 
 # Ensure CompanyFolderName is provided; if not, default to "DefaultCompany".
-if (-not $CompanyFolderName -or $CompanyFolderName -eq "") {
-    Write-Host "CompanyFolderName parameter not provided. Defaulting to 'DefaultCompany'." -ForegroundColor Yellow
-    $CompanyFolderName = "DefaultCompany"
-}
-
+#if (-not $CompanyFolderName -or $CompanyFolderName -eq "") {
+#    Write-Host "CompanyFolderName parameter not provided. Defaulting to 'DefaultCompany'." -ForegroundColor Yellow
+#    $CompanyFolderName = "DefaultCompany"
+#}
 
 # Create the logs folder in the USB root if it doesn't exist.
-#$logsDir = Join-Path $usbroot "logs"
-#if (-not (Test-Path $logsDir)) {
-#    New-Item -Path $logsDir -ItemType Directory -Force | Out-Null
-#}
+$logsDir = Join-Path $usbroot "logs"
+if (-not (Test-Path $logsDir)) {
+    New-Item -Path $logsDir -ItemType Directory -Force | Out-Null
+}
 
 # Create the log file with the naming convention: "$CompanyFolderName.$timestamp.log"
 $logFile = Join-Path $logsDir "$CompanyFolderName.$timestamp.log"

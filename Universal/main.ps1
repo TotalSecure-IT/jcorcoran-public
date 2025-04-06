@@ -388,8 +388,8 @@ function Process-Manifest {
                 $downloadedFiles += $dest
             }
             catch {
-                Write-Host "Error downloading $filename from $fileUrl: $_" -ForegroundColor Red
-                Write-MainLog "Error downloading $filename from $fileUrl: $_"
+                Write-Host "Error downloading $filename from $fileUrl $_" -ForegroundColor Red
+                Write-MainLog "Error downloading $filename from $fileUrl $_"
             }
         }
         else {

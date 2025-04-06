@@ -47,9 +47,9 @@ $SubmenuStartRow = 13  # Submenu will start at the same row as the main menu
 $ExtraMargin = 10
 
 # Global GitHub URLs for reading content directly.
-$GlobalMainMenuUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/mainmenu.txt"
+$GlobalMainMenuUrl   = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/mainmenu.txt"
 $GlobalMainBannerUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/mainbanner.txt"
-$GlobalMotdUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/motd.txt"
+$GlobalMotdUrl       = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/motd.txt"
 
 # ----------------------------
 # Admin Privilege Check
@@ -69,8 +69,8 @@ if (-not (Test-Admin)) {
 # ----------------------------
 # Create Required Folder Structure in UsbRoot
 # ----------------------------
-$Folders = @("Company_Banners", "Company_Scripts", "Installers")
-foreach ($folder in $Folders) {
+$RequiredFolders = @("Company_Banners", "Company_Scripts", "Installers")
+foreach ($folder in $RequiredFolders) {
     $folderPath = Join-Path $UsbRoot $folder
     if (-not (Test-Path $folderPath)) {
         New-Item -Path $folderPath -ItemType Directory -Force | Out-Null
@@ -121,7 +121,7 @@ function Show-MainMenu {
     $menuItems = $menuContent -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
     Clear-Host
 
-    # Render Banner: center each line.
+    # Render Banner: Center each line.
     $bannerContent = Get-MainBannerContent
     $bannerLines = $bannerContent -split "`n"
     foreach ($line in $bannerLines) {
@@ -199,15 +199,15 @@ function Get-Submenu {
                     $actionType = $matches[1].Trim()
                     $actionContent = $matches[2].Trim()
                     $submenuItems += [PSCustomObject]@{
-                        Title = $title
-                        ActionType = $actionType
+                        Title       = $title
+                        ActionType  = $actionType
                         ActionContent = $actionContent
                     }
                 }
                 else {
                     $submenuItems += [PSCustomObject]@{
-                        Title = $title
-                        ActionType = ""
+                        Title       = $title
+                        ActionType  = ""
                         ActionContent = ""
                     }
                 }
@@ -242,8 +242,8 @@ function Show-Submenu {
     }
     if ($hasManifest) {
         $deployItem = [PSCustomObject]@{
-            Title = "Deploy Onboarding Script"
-            ActionType = "MANIFEST"
+            Title       = "Deploy Onboarding Script"
+            ActionType  = "MANIFEST"
             ActionContent = $manifestUrl
         }
         $submenuItems = ,$deployItem + ($submenuItems | Sort-Object Title)
@@ -252,8 +252,8 @@ function Show-Submenu {
         $submenuItems = $submenuItems | Sort-Object Title
     }
     $goBackItem = [PSCustomObject]@{
-        Title = "Go back"
-        ActionType = "BACK"
+        Title       = "Go back"
+        ActionType  = "BACK"
         ActionContent = ""
     }
     $submenuItems += $goBackItem
@@ -268,7 +268,7 @@ function Show-Submenu {
 
     # Clear the entire screen and add a blank top line.
     Clear-Host
-    Write-Host ""
+    Write-Host ""  # Blank top line
 
     # Re-display mainbanner and MOTD.
     $bannerContent = Get-MainBannerContent

@@ -5,14 +5,14 @@ param(
 # Remove any extraneous quotes from the passed USB root path.
 $UsbRoot = $UsbRoot.Trim('"')
 
-# Create a folder for script files (for logs and shared files) in UsbRoot.
-$ScriptFilesPath = Join-Path $UsbRoot "script_files"
-if (-not (Test-Path $ScriptFilesPath)) {
-    New-Item -Path $ScriptFilesPath -ItemType Directory -Force | Out-Null
+# Create a folder for logs in UsbRoot.
+$logsPath = Join-Path $UsbRoot "logs"
+if (-not (Test-Path $logsPath)) {
+    New-Item -Path $logsPath -ItemType Directory -Force | Out-Null
 }
 
-# Define the main log file path in the script_files folder.
-$mainLogFile = Join-Path $ScriptFilesPath ("{0}-main-log.log" -f (Get-Date -Format "yyyyMMdd_HHmmss"))
+# Define the main log file path in the logs folder.
+$mainLogFile = Join-Path $logsPath ("{0}-main-log.log" -f (Get-Date -Format "yyyyMMdd_HHmmss"))
 
 # Function to write timestamped entries to the main log.
 function Write-MainLog {
@@ -41,7 +41,7 @@ $MenuDefaultForeground = "Gray"       # Default text color for menu items
 $BannerStartRow = 0
 $MessageBodyStartRow = 7
 $MenuStartRow = 12
-$SubmenuStartRow = 13  # Submenu will start at the row specified here
+$SubmenuStartRow = 13  # Submenu will start at the same row as the main menu
 
 # New adjustable margin (in characters) for the MOTD (and banner, if desired)
 $ExtraMargin = 10
@@ -67,23 +67,20 @@ if (-not (Test-Admin)) {
 }
 
 # ----------------------------
-# Create Required Folder Structure
+# Create Required Folder Structure in UsbRoot
 # ----------------------------
-$BaseDir = "C:\TotalSecureUOBS"
 $Folders = @("Company_Banners", "Company_Scripts", "Installers")
-if (-not (Test-Path $BaseDir)) {
-    New-Item -Path $BaseDir -ItemType Directory -Force | Out-Null
-    Write-MainLog "Created base directory: $BaseDir."
-}
 foreach ($folder in $Folders) {
-    $folderPath = Join-Path $BaseDir $folder
+    $folderPath = Join-Path $UsbRoot $folder
     if (-not (Test-Path $folderPath)) {
         New-Item -Path $folderPath -ItemType Directory -Force | Out-Null
         Write-MainLog "Created folder: $folderPath."
     }
 }
-Set-Location $BaseDir
-Write-MainLog "Set working directory to $BaseDir."
+
+# Set the working directory to UsbRoot.
+Set-Location $UsbRoot
+Write-MainLog "Set working directory to $UsbRoot."
 
 # ----------------------------
 # Functions to Read Global Components Directly from GitHub
@@ -124,7 +121,7 @@ function Show-MainMenu {
     $menuItems = $menuContent -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
     Clear-Host
 
-    # Render Banner: Center each line.
+    # Render Banner: center each line.
     $bannerContent = Get-MainBannerContent
     $bannerLines = $bannerContent -split "`n"
     foreach ($line in $bannerLines) {
@@ -179,9 +176,7 @@ function Show-MainMenu {
             }
         }
     }
-    # Append two hyphens to the selected option.
-    $finalOption = $menuItems[$selectedIndex] + "--"
-    return $finalOption
+    return $menuItems[$selectedIndex]
 }
 
 # ----------------------------
@@ -412,8 +407,8 @@ function Setup-Company {
         [string]$companyName
     )
     $companyFolderName = $companyName -replace '\s+', '-'
-    $companyBannerDir = Join-Path "$BaseDir\Company_Banners" $companyFolderName
-    $companyScriptsDir = Join-Path "$BaseDir\Company_Scripts" $companyFolderName
+    $companyBannerDir = Join-Path "$UsbRoot\Company_Banners" $companyFolderName
+    $companyScriptsDir = Join-Path "$UsbRoot\Company_Scripts" $companyFolderName
     try {
         if (-not (Test-Path $companyBannerDir)) {
             New-Item -Path $companyBannerDir -ItemType Directory -Force | Out-Null
@@ -469,7 +464,7 @@ $confirmed = $false
 while (-not $confirmed) {
 
     $selectedOption = Show-MainMenu
-    if ($selectedOption -eq "Quit--") {
+    if ($selectedOption -eq "Quit") {
         Write-Host "Exiting script. Goodbye!" -ForegroundColor Cyan
         Write-MainLog "User selected Quit. Exiting script."
         exit

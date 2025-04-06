@@ -9,7 +9,8 @@ param(
 
 # Create a new log filename with a timestamp
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$logFile = Join-Path $PSScriptRoot "deployment_log_$timestamp.txt"
+$usbroot = Split-Path $ConfigPath -Parent
+$logFile = Join-Path (Join-Path $usbroot "logs") "$CompanyFolderName.$timestamp.log"
 
 # Global variable for the winget download info
 $global:WingetDownloadInfo = @{}
@@ -28,7 +29,7 @@ function Write-Log {
         [Parameter(Mandatory)]
         [string]$Message
     )
-    $timeStampLine = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $timestamp = Get-Date -Format "yyyy-MM-dd_HHmm"
     Add-Content -Path $logFile -Value "$timeStampLine - $Message"
 }
 
@@ -70,9 +71,9 @@ function Convert-IniToHashtable {
     return $ini
 }
 
-# Load our config file from the dynamic location if provided, else from $PSScriptRoot.
+# Load our config file from the dynamic location (UsbRoot\configs\<CompanyFolderName>)
 if ($ConfigPath) {
-    $configFile = Join-Path $ConfigPath "config.ini"
+    $configFile = Join-Path (Join-Path $ConfigPath $CompanyFolderName) "config.ini"
 } else {
     $configFile = Join-Path $PSScriptRoot "config.ini"
 }
@@ -182,7 +183,7 @@ function global:Render-Banner {
     Set-CursorPosition -Row 1 -Column 1
     try {
         # Construct the path to the banner.txt file using the fixed base path and the company folder name.
-        $bannerFile = Join-Path "C:\TotalSecureUOBS\Company_Banners\$CompanyFolderName" "banner.txt"
+        $bannerFile = Join-Path "$UsbRoot\Company_Banners\$CompanyFolderName" "banner.txt"
         if (Test-Path $bannerFile) {
             $bannerLines = Get-Content $bannerFile -Encoding UTF8
             $bannerColors = @("DarkBlue", "Blue", "DarkCyan", "DarkGreen", "Green", "Cyan", "Gray", "DarkGray", "Green", "DarkGreen")

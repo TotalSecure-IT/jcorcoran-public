@@ -3,23 +3,30 @@ param(
     [string]$CompanyFolderName
 )
 
-# ====================
-# INITIAL SETUP & LOGGING
-# ====================
+# Verify that CompanyFolderName is provided.
+if (-not $CompanyFolderName -or $CompanyFolderName -eq "") {
+    Write-Error "CompanyFolderName parameter is required."
+    exit 1
+}
 
-# Create a new log filename with a timestamp
-$usbroot = Split-Path $ConfigPath -Parent
+# Create a new timestamp with the desired format.
 $timestamp = Get-Date -Format "yyyy-MM-dd_HHmm"
 
-# If $ConfigPath is empty, default it to $PSScriptRoot; otherwise, use its parent as the USB root.
-if (-not $ConfigPath) {
+# Determine the USB root.
+if (-not $ConfigPath -or $ConfigPath -eq "") {
     $usbroot = $PSScriptRoot
 } else {
     $usbroot = Split-Path $ConfigPath -Parent
 }
 
-# Create the log file path in the usbroot\logs folder with the new naming convention.
-$logFile = Join-Path (Join-Path $usbroot "logs") "$CompanyFolderName.$timestamp.log"
+# Create the logs folder in the USB root if it doesn't exist.
+$logsDir = Join-Path $usbroot "logs"
+if (-not (Test-Path $logsDir)) {
+    New-Item -Path $logsDir -ItemType Directory -Force | Out-Null
+}
+
+# Create the log file with the new naming convention: <CompanyFolderName>.<timestamp>.log
+$logFile = Join-Path $logsDir "$CompanyFolderName.$timestamp.log"
 
 # Global variable for the winget download info
 $global:WingetDownloadInfo = @{}
@@ -27,7 +34,7 @@ if (-not $appStatus) { $appStatus = @{} }
 if (-not $tableStartLine) { $tableStartLine = 8 }
 
 # Global error log array
-$global:ErrorLog = @()
+$global:ErrorLog = @{}
 
 # (Do not disable the progress bar; let Invoke-WebRequest show it)
 #$ProgressPreference = 'SilentlyContinue'

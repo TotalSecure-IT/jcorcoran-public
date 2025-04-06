@@ -458,15 +458,18 @@ function Setup-Company {
     param(
         [string]$companyName
     )
-    # Default to "DefaultCompany" if no company name is provided.
+    # Trim the company name to remove any leading/trailing spaces.
+    $companyName = $companyName.Trim()
+    
+    # Default to "DefaultCompany" if no company name is provided after trimming.
     if (-not $companyName -or $companyName -eq "") {
         $companyName = "DefaultCompany"
     }
     
-    # Replace spaces with dashes to form the folder name.
+    # Replace any remaining spaces with dashes to form the folder name.
     $companyFolderName = $companyName -replace '\s+', '-'
     
-    # Build the full paths for the banner and scripts directories.
+    # Build the full paths for the banner and scripts directories using the USB root.
     $companyBannerDir = Join-Path (Join-Path $UsbRoot "Company_Banners") $companyFolderName
     $companyScriptsDir = Join-Path (Join-Path $UsbRoot "Company_Scripts") $companyFolderName
     
@@ -478,7 +481,7 @@ function Setup-Company {
         New-Item -Path $companyScriptsDir -ItemType Directory -Force | Out-Null
     }
     
-    # Return a hashtable with the key paths and the folder name.
+    # Return a hashtable with the key paths and the formatted folder name.
     return @{ 
         BannerDir  = $companyBannerDir; 
         ScriptsDir = $companyScriptsDir; 
@@ -558,7 +561,7 @@ while (-not $confirmed) {
             Write-Host "Launching $selectedOption onboarding script..." -ForegroundColor Cyan
             Write-Host "Using script file: $($companySetup.DeployPS1)" -ForegroundColor Cyan
             Write-MainLog "Launching deploy script for $selectedOption."
-            & $companySetup.DeployPS1 -ConfigPath (Join-Path (Join-Path $UsbRoot "configs") $companySetup.FolderName) -CompanyFolderName "$($companySetup.FolderName)"
+            & $companySetup.DeployPS1 -ConfigPath (Join-Path (Join-Path $UsbRoot "configs") $companySetup.FolderName) -CompanyFolderName $companySetup.FolderName
         }
         catch {
             Write-Host "Error launching company script: $_" -ForegroundColor Red

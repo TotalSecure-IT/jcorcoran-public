@@ -3,20 +3,24 @@ param(
     [string]$CompanyFolderName
 )
 
-# Verify that CompanyFolderName is provided.
-if (-not $CompanyFolderName -or $CompanyFolderName -eq "") {
-    Write-Error "CompanyFolderName parameter is required."
-    exit 1
-}
+# ====================
+# INITIAL SETUP & LOGGING
+# ====================
 
-# Create a new timestamp with the desired format.
+# Create a new timestamp in the format "yyyy-MM-dd_HHmm"
 $timestamp = Get-Date -Format "yyyy-MM-dd_HHmm"
 
-# Determine the USB root.
+# Determine the USB root: if $ConfigPath is provided, use its parent; otherwise, use $PSScriptRoot.
 if (-not $ConfigPath -or $ConfigPath -eq "") {
     $usbroot = $PSScriptRoot
 } else {
     $usbroot = Split-Path $ConfigPath -Parent
+}
+
+# If CompanyFolderName is not provided, assign a default value.
+if (-not $CompanyFolderName -or $CompanyFolderName -eq "") {
+    Write-Host "CompanyFolderName parameter not provided. Defaulting to 'DefaultCompany'." -ForegroundColor Yellow
+    $CompanyFolderName = "DefaultCompany"
 }
 
 # Create the logs folder in the USB root if it doesn't exist.
@@ -25,7 +29,7 @@ if (-not (Test-Path $logsDir)) {
     New-Item -Path $logsDir -ItemType Directory -Force | Out-Null
 }
 
-# Create the log file with the new naming convention: <CompanyFolderName>.<timestamp>.log
+# Create the log file with the naming convention: "$CompanyFolderName.$timestamp.log"
 $logFile = Join-Path $logsDir "$CompanyFolderName.$timestamp.log"
 
 # Global variable for the winget download info

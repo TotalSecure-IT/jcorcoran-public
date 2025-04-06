@@ -46,6 +46,6 @@ if not exist "C:\Program Files\PowerShell\7\pwsh.exe" goto WaitForPS7
 :PS7Installed
 echo PowerShell 7 detected.
 echo Launching main.ps1 from GitHub with PS7...
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& { $script = (irm 'https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/main.ps1'); & ([scriptblock]::Create($script)) -UsbRoot '%BASE%' }"
+"C:\Program Files\PowerShell\7\pwsh.exe" -NoProfile -ExecutionPolicy Bypass -Command "& { $script = (irm 'https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/main.ps1'); & ([scriptblock]::Create($script)) -UsbRoot '%BASE%' }"
 endlocal
 exit /b

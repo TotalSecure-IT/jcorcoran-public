@@ -458,35 +458,32 @@ function Setup-Company {
     param(
         [string]$companyName
     )
-    # Trim the company name to remove any leading/trailing spaces.
-    $companyName = $companyName.Trim()
-    
-    # Default to "DefaultCompany" if no company name is provided after trimming.
+    # Use the company name exactly as provided; default if empty.
     if (-not $companyName -or $companyName -eq "") {
+        Write-MainLog "No company name provided. Defaulting to 'DefaultCompany'."
         $companyName = "DefaultCompany"
     }
+    Write-MainLog "Using company name: '$companyName'"
     
-    # Replace any remaining spaces with dashes to form the folder name.
-    $companyFolderName = $companyName -replace '\s+', '-'
-    
-    # Build the full paths for the banner and scripts directories using the USB root.
-    $companyBannerDir = Join-Path (Join-Path $UsbRoot "Company_Banners") $companyFolderName
-    $companyScriptsDir = Join-Path (Join-Path $UsbRoot "Company_Scripts") $companyFolderName
-    
-    # Create the directories if they do not exist.
+    # Use the exact company name to build folder paths.
+    $companyBannerDir = Join-Path $UsbRoot "Company_Banners\$companyName"
+    $companyScriptsDir  = Join-Path $UsbRoot "Company_Scripts\$companyName"
+
     if (-not (Test-Path $companyBannerDir)) {
         New-Item -Path $companyBannerDir -ItemType Directory -Force | Out-Null
+        Write-MainLog "Created company banner directory: $companyBannerDir"
     }
     if (-not (Test-Path $companyScriptsDir)) {
         New-Item -Path $companyScriptsDir -ItemType Directory -Force | Out-Null
+        Write-MainLog "Created company scripts directory: $companyScriptsDir"
     }
     
-    # Return a hashtable with the key paths and the formatted folder name.
+    # Return the paths along with the exact company name.
     return @{ 
         BannerDir  = $companyBannerDir; 
         ScriptsDir = $companyScriptsDir; 
         DeployPS1  = Join-Path $companyScriptsDir "deploy.ps1"; 
-        FolderName = $companyFolderName 
+        FolderName = $companyName
     }
 }
 

@@ -95,7 +95,7 @@ function Get-ContentFromUrl {
         return $response.Content
     }
     catch {
-        Write-MainLog "Error retrieving content from $url: $_"
+        Write-MainLog "Error retrieving content from $url-- $_"
         return ""
     }
 }

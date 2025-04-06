@@ -2,7 +2,7 @@ param(
     [string]$UsbRoot
 )
 
-# Remove any extraneous quotes from the passed USB root path.
+# Remove extraneous quotes from the passed USB root path.
 $UsbRoot = $UsbRoot.Trim('"')
 
 # Create a folder for logs in UsbRoot.
@@ -43,10 +43,10 @@ $MessageBodyStartRow = 7
 $MenuStartRow = 12
 $SubmenuStartRow = 13  # Submenu will start at the same row as the main menu
 
-# New adjustable margin (in characters) for the MOTD (and banner, if desired)
+# New adjustable margin (in characters) for MOTD (and banner, if desired)
 $ExtraMargin = 10
 
-# Global GitHub URLs for reading content directly.
+# Global GitHub raw URLs for reading content directly.
 $GlobalMainMenuUrl   = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/mainmenu.txt"
 $GlobalMainBannerUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/mainbanner.txt"
 $GlobalMotdUrl       = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/motd.txt"
@@ -69,6 +69,7 @@ if (-not (Test-Admin)) {
 # ----------------------------
 # Create Required Folder Structure in UsbRoot
 # ----------------------------
+# (FOLDERS: Company_Banners, Company_Scripts, Installers will be created in UsbRoot)
 $RequiredFolders = @("Company_Banners", "Company_Scripts", "Installers")
 foreach ($folder in $RequiredFolders) {
     $folderPath = Join-Path $UsbRoot $folder
@@ -85,32 +86,32 @@ Write-MainLog "Set working directory to $UsbRoot."
 # ----------------------------
 # Functions to Read Global Components Directly from GitHub
 # ----------------------------
-function Get-MainMenuContent {
+function Get-ContentFromUrl {
+    param(
+       [string]$url
+    )
     try {
-        return (irm $GlobalMainMenuUrl).Content
+        $response = Invoke-WebRequest -Uri $url -UseBasicParsing -ErrorAction Stop
+        return $response.Content
     }
     catch {
-        Write-MainLog "Error retrieving main menu from GitHub: $_"
-        exit
+        Write-MainLog "Error retrieving content from $url: $_"
+        return ""
     }
+}
+
+function Get-MainMenuContent {
+    return Get-ContentFromUrl -url $GlobalMainMenuUrl
 }
 
 function Get-MainBannerContent {
-    try {
-        return (irm $GlobalMainBannerUrl).Content
-    }
-    catch {
-        return "== Universal Onboarding Script =="
-    }
+    $content = Get-ContentFromUrl -url $GlobalMainBannerUrl
+    if ([string]::IsNullOrWhiteSpace($content)) { return "== Universal Onboarding Script ==" } else { return $content }
 }
 
 function Get-MotdContent {
-    try {
-        return (irm $GlobalMotdUrl).Content
-    }
-    catch {
-        return "Welcome. Please select an option below:"
-    }
+    $content = Get-ContentFromUrl -url $GlobalMotdUrl
+    if ([string]::IsNullOrWhiteSpace($content)) { return "Welcome. Please select an option below:" } else { return $content }
 }
 
 # ----------------------------
@@ -118,12 +119,13 @@ function Get-MotdContent {
 # ----------------------------
 function Show-MainMenu {
     $menuContent = Get-MainMenuContent
-    $menuItems = $menuContent -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
+    # Use regex to split on CRLF or LF.
+    $menuItems = $menuContent -split "\r?\n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
     Clear-Host
 
     # Render Banner: Center each line.
     $bannerContent = Get-MainBannerContent
-    $bannerLines = $bannerContent -split "`n"
+    $bannerLines = $bannerContent -split "\r?\n"
     foreach ($line in $bannerLines) {
         $trimLine = $line.TrimEnd()
         $leftMarginBanner = [math]::Floor(([console]::WindowWidth - $trimLine.Length) / 2)
@@ -133,7 +135,7 @@ function Show-MainMenu {
 
     # Render MOTD as a block with extra margins.
     $motdContent = Get-MotdContent
-    $motdLines = $motdContent -split "`n"
+    $motdLines = $motdContent -split "\r?\n"
     $availableWidth = [console]::WindowWidth - (2 * $ExtraMargin)
     foreach ($line in $motdLines) {
         $trimLine = $line.TrimEnd()
@@ -148,19 +150,16 @@ function Show-MainMenu {
     $exitMenu = $false
     while (-not $exitMenu) {
         for ($i = 0; $i -lt $menuItems.Count; $i++) {
-            $consoleWidth = [console]::WindowWidth
-            $menuItemText = $menuItems[$i]
-            $leftPadding = [math]::Floor(($consoleWidth - $menuItemText.Length) / 2)
-            $centeredText = (" " * $leftPadding) + $menuItemText
-            $centeredText = $centeredText.PadRight($consoleWidth)
+            $width = [console]::WindowWidth
+            $text = $menuItems[$i]
+            $padding = [math]::Floor(($width - $text.Length) / 2)
+            $line = (" " * $padding) + $text
+            $line = $line.PadRight($width)
             [console]::SetCursorPosition(0, $MenuStartRow + $i)
             if ($i -eq $selectedIndex) {
-                Write-Host $centeredText -ForegroundColor $MenuHighlightForeground -BackgroundColor $MenuHighlightBackground -NoNewline
-                Write-Host ""
-            }
-            else {
-                Write-Host $centeredText -ForegroundColor $MenuDefaultForeground -BackgroundColor "Black" -NoNewline
-                Write-Host ""
+                Write-Host $line -ForegroundColor $MenuHighlightForeground -BackgroundColor $MenuHighlightBackground
+            } else {
+                Write-Host $line -ForegroundColor $MenuDefaultForeground -BackgroundColor "Black"
             }
         }
         $key = [console]::ReadKey($true)
@@ -171,9 +170,7 @@ function Show-MainMenu {
             'DownArrow' {
                 if ($selectedIndex -eq ($menuItems.Count - 1)) { $selectedIndex = 0 } else { $selectedIndex++ }
             }
-            'Enter' {
-                $exitMenu = $true
-            }
+            'Enter' { $exitMenu = $true }
         }
     }
     return $menuItems[$selectedIndex]
@@ -189,7 +186,7 @@ function Get-Submenu {
     $submenuUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/$companyName/submenu.txt"
     try {
         $submenuContent = Invoke-WebRequest -Uri $submenuUrl -UseBasicParsing -ErrorAction Stop | Select-Object -ExpandProperty Content
-        $lines = $submenuContent -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
+        $lines = $submenuContent -split "\r?\n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
         $submenuItems = @()
         foreach ($line in $lines) {
             if ($line -match "^(.*?)\s*\|\s*(.+)$") {
@@ -199,15 +196,15 @@ function Get-Submenu {
                     $actionType = $matches[1].Trim()
                     $actionContent = $matches[2].Trim()
                     $submenuItems += [PSCustomObject]@{
-                        Title       = $title
-                        ActionType  = $actionType
+                        Title         = $title
+                        ActionType    = $actionType
                         ActionContent = $actionContent
                     }
                 }
                 else {
                     $submenuItems += [PSCustomObject]@{
-                        Title       = $title
-                        ActionType  = ""
+                        Title         = $title
+                        ActionType    = ""
                         ActionContent = ""
                     }
                 }
@@ -242,8 +239,8 @@ function Show-Submenu {
     }
     if ($hasManifest) {
         $deployItem = [PSCustomObject]@{
-            Title       = "Deploy Onboarding Script"
-            ActionType  = "MANIFEST"
+            Title         = "Deploy Onboarding Script"
+            ActionType    = "MANIFEST"
             ActionContent = $manifestUrl
         }
         $submenuItems = ,$deployItem + ($submenuItems | Sort-Object Title)
@@ -252,8 +249,8 @@ function Show-Submenu {
         $submenuItems = $submenuItems | Sort-Object Title
     }
     $goBackItem = [PSCustomObject]@{
-        Title       = "Go back"
-        ActionType  = "BACK"
+        Title         = "Go back"
+        ActionType    = "BACK"
         ActionContent = ""
     }
     $submenuItems += $goBackItem
@@ -268,11 +265,11 @@ function Show-Submenu {
 
     # Clear the entire screen and add a blank top line.
     Clear-Host
-    Write-Host ""  # Blank top line
+    Write-Host ""  # Blank line at the very top
 
     # Re-display mainbanner and MOTD.
     $bannerContent = Get-MainBannerContent
-    $bannerLines = $bannerContent -split "`n"
+    $bannerLines = $bannerContent -split "\r?\n"
     foreach ($line in $bannerLines) {
         $trimLine = $line.TrimEnd()
         $leftMarginBanner = [math]::Floor(([console]::WindowWidth - $trimLine.Length) / 2)
@@ -280,7 +277,7 @@ function Show-Submenu {
         Write-Host "$spaces$trimLine" -ForegroundColor $BannerColor
     }
     $motdContent = Get-MotdContent
-    $motdLines = $motdContent -split "`n"
+    $motdLines = $motdContent -split "\r?\n"
     $availableWidth = [console]::WindowWidth - (2 * $ExtraMargin)
     foreach ($line in $motdLines) {
         $trimLine = $line.TrimEnd()

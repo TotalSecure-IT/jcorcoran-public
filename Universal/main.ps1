@@ -459,29 +459,15 @@ function Setup-Company {
         [string]$companyName
     )
     $companyFolderName = $companyName -replace '\s+', '-'
-    $companyBannerDir = Join-Path "$UsbRoot\Company_Banners" $companyFolderName
-    $companyScriptsDir = Join-Path "$UsbRoot\Company_Scripts" $companyFolderName
-    try {
-        if (-not (Test-Path $companyBannerDir)) {
-            New-Item -Path $companyBannerDir -ItemType Directory -Force | Out-Null
-            Write-MainLog "Created company banner directory: $companyBannerDir."
-        }
-        if (-not (Test-Path $companyScriptsDir)) {
-            New-Item -Path $companyScriptsDir -ItemType Directory -Force | Out-Null
-            Write-MainLog "Created company scripts directory: $companyScriptsDir."
-        }
-    }
-    catch {
-        throw "Error creating company directories: $_"
-    }
-    $manifestUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/$companyFolderName/manifest.txt"
-    Write-MainLog "Using manifest URL: $manifestUrl"
-    Write-Host "Proceeding with standard manifest processing for $companyName." -ForegroundColor Cyan
+    $companyBannerDir = Join-Path $UsbRoot "Company_Banners\$companyFolderName"
+    $companyScriptsDir = Join-Path $UsbRoot "Company_Scripts\$companyFolderName"
+    if (-not (Test-Path $companyBannerDir)) { New-Item -Path $companyBannerDir -ItemType Directory -Force | Out-Null }
+    if (-not (Test-Path $companyScriptsDir)) { New-Item -Path $companyScriptsDir -ItemType Directory -Force | Out-Null }
     return @{ 
-        BannerDir   = $companyBannerDir; 
-        ScriptsDir  = $companyScriptsDir; 
-        DeployPS1   = Join-Path $companyScriptsDir "deploy.ps1"; 
-        FolderName  = $companyFolderName 
+        BannerDir  = $companyBannerDir; 
+        ScriptsDir = $companyScriptsDir; 
+        DeployPS1  = Join-Path $companyScriptsDir "deploy.ps1"; 
+        FolderName = $companyFolderName 
     }
 }
 

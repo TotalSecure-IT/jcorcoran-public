@@ -15,10 +15,6 @@ if errorlevel 1 (
     echo Winget is installed.
 )
 
-REM ----- Disable msstore source to bypass agreement prompt -----
-echo Disabling msstore source to bypass agreement prompt...
-winget source disable msstore
-
 REM ----- Check if PowerShell 7 is installed -----
 if exist "C:\Program Files\PowerShell\7\pwsh.exe" (
     goto PS7Installed

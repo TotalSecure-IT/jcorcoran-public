@@ -21,7 +21,6 @@ Write-MainLog "Main script started."
 
 # ========================================================
 # Universal Onboarding Script Main Module
-# Run this script with: powershell.exe -ExecutionPolicy Bypass -File .\main.ps1
 # ========================================================
 
 # ----------------------------
@@ -35,7 +34,11 @@ $MenuDefaultForeground = "Gray"       # Default text color for menu items
 # Starting positions (line numbers in the console)
 $BannerStartRow = 0
 $MessageBodyStartRow = 7
-$MenuStartRow = 20
+$MenuStartRow = 12
+$SubmenuStartRow = 13  # Submenu will start at the same row as the main menu
+
+# New adjustable margin (in characters) for the MOTD (and banner, if desired)
+$ExtraMargin = 10
 
 # ----------------------------
 # Admin Privilege Check
@@ -123,7 +126,7 @@ function Download-GlobalComponents {
 Download-GlobalComponents
 
 # ----------------------------
-# Main Menu Function (from mainmenu.txt)
+# Function: Show-MainMenu (from mainmenu.txt)
 # ----------------------------
 function Show-MainMenu {
     $mainMenuFile = Join-Path $UsbRoot "mainmenu.txt"
@@ -135,34 +138,46 @@ function Show-MainMenu {
         exit
     }
     $menuItems = Get-Content $mainMenuFile | Where-Object { $_.Trim() -ne "" }
-    # Main menu items are hyphenated (for aesthetic purposes)
     Clear-Host
+    # Render Banner: Center each line horizontally.
     $bannerFile = Join-Path $UsbRoot "mainbanner.txt"
     if (Test-Path $bannerFile) {
         $bannerContent = Get-Content $bannerFile -Raw
     } else {
         $bannerContent = "== Universal Onboarding Script =="
     }
-    [console]::SetCursorPosition(0, $BannerStartRow)
-    Write-Host $bannerContent -ForegroundColor $BannerColor
-    # Use motd.txt for message body.
+    $bannerLines = $bannerContent -split "`n"
+    foreach ($line in $bannerLines) {
+        $trimLine = $line.TrimEnd()
+        $leftMarginBanner = [math]::Floor(([console]::WindowWidth - $trimLine.Length) / 2)
+        $spaces = " " * $leftMarginBanner
+        Write-Host "$spaces$trimLine" -ForegroundColor $BannerColor
+    }
+
+    # Render MOTD: center as a block with extra left/right margins.
     $motdFile = Join-Path $UsbRoot "motd.txt"
     if (Test-Path $motdFile) {
         $motdContent = Get-Content $motdFile -Raw
     } else {
         $motdContent = "Welcome. Please select an option below:"
     }
-    [console]::SetCursorPosition(0, $MessageBodyStartRow)
-    Write-Host $motdContent -ForegroundColor $MenuDefaultForeground
+    $motdLines = $motdContent -split "`n"
+    $availableWidth = [console]::WindowWidth - (2 * $ExtraMargin)
+    foreach ($line in $motdLines) {
+        $trimLine = $line.TrimEnd()
+        $lineLength = $trimLine.Length
+        $leftPad = $ExtraMargin + [math]::Floor(($availableWidth - $lineLength) / 2)
+        $padSpaces = " " * $leftPad
+        Write-Host "$padSpaces$trimLine" -ForegroundColor $MenuDefaultForeground
+    }
 
-    # Main menu items remain hyphenated.
+    # Now, render the main menu items centered (they are printed in full width).
     $selectedIndex = 0
     $exitMenu = $false
     while (-not $exitMenu) {
         for ($i = 0; $i -lt $menuItems.Count; $i++) {
             $consoleWidth = [console]::WindowWidth
             $menuItemText = $menuItems[$i]
-            # Main menu items are already hyphenated.
             $leftPadding = [math]::Floor(($consoleWidth - $menuItemText.Length) / 2)
             $centeredText = (" " * $leftPadding) + $menuItemText
             $centeredText = $centeredText.PadRight($consoleWidth)
@@ -179,18 +194,10 @@ function Show-MainMenu {
         $key = [console]::ReadKey($true)
         switch ($key.Key) {
             'UpArrow' {
-                if ($selectedIndex -eq 0) {
-                    $selectedIndex = $menuItems.Count - 1
-                } else {
-                    $selectedIndex--
-                }
+                if ($selectedIndex -eq 0) { $selectedIndex = $menuItems.Count - 1 } else { $selectedIndex-- }
             }
             'DownArrow' {
-                if ($selectedIndex -eq ($menuItems.Count - 1)) {
-                    $selectedIndex = 0
-                } else {
-                    $selectedIndex++
-                }
+                if ($selectedIndex -eq ($menuItems.Count - 1)) { $selectedIndex = 0 } else { $selectedIndex++ }
             }
             'Enter' {
                 $exitMenu = $true
@@ -244,14 +251,15 @@ function Get-Submenu {
 }
 
 # ----------------------------
-# Function to Display Submenu Interactively
+# Function: Show-Submenu
 # ----------------------------
 function Show-Submenu {
     param(
         [string]$companyName,
-        [array]$submenuItems
+        [array]$submenuItems,
+        [int]$SubmenuStartRow
     )
-    # Check if manifest.txt exists for this company
+    # Check for manifest and insert reserved item as before.
     $manifestUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/$companyName/manifest.txt"
     $hasManifest = $false
     try {
@@ -272,7 +280,6 @@ function Show-Submenu {
     else {
         $submenuItems = $submenuItems | Sort-Object Title
     }
-    # Always append "Go back" as last item.
     $goBackItem = [PSCustomObject]@{
         Title = "Go back"
         ActionType = "BACK"
@@ -280,52 +287,95 @@ function Show-Submenu {
     }
     $submenuItems += $goBackItem
 
-    # Display submenu with header (the main menu item) above.
+    # Calculate maximum title length (without prefix).
+    $maxLength = ($submenuItems | ForEach-Object { $_.Title.Length } | Measure-Object -Maximum).Maximum
+    if (-not $maxLength) { $maxLength = 20 }
+    $prefixLength = 3  # "╠═ " or "╚═ "
+    $blockWidth = $maxLength + $prefixLength
+    $consoleWidth = [console]::WindowWidth
+    $leftMargin = [math]::Floor(($consoleWidth - $blockWidth) / 2)
+    $marginSpaces = " " * $leftMargin
+
+    # Clear the entire screen and add a blank top line.
     Clear-Host
-    $header = "╓" + $companyName
-    Write-Host $header -ForegroundColor $MenuHighlightForeground -BackgroundColor $MenuHighlightBackground
+    Write-Host ""  # Blank line at the very top
+
+    # Re-display mainbanner and MOTD as before.
+    $bannerFile = Join-Path $UsbRoot "mainbanner.txt"
+    if (Test-Path $bannerFile) {
+        $bannerContent = Get-Content $bannerFile -Raw
+    } else {
+        $bannerContent = "== Universal Onboarding Script =="
+    }
+    $bannerLines = $bannerContent -split "`n"
+    foreach ($line in $bannerLines) {
+        $trimLine = $line.TrimEnd()
+        $leftMarginBanner = [math]::Floor(([console]::WindowWidth - $trimLine.Length) / 2)
+        $spaces = " " * $leftMarginBanner
+        Write-Host "$spaces$trimLine" -ForegroundColor $BannerColor
+    }
+    $motdFile = Join-Path $UsbRoot "motd.txt"
+    if (Test-Path $motdFile) {
+        $motdContent = Get-Content $motdFile -Raw
+    } else {
+        $motdContent = "Welcome. Please select an option below:"
+    }
+    $motdLines = $motdContent -split "`n"
+    $availableWidth = [console]::WindowWidth - (2 * $ExtraMargin)
+    foreach ($line in $motdLines) {
+        $trimLine = $line.TrimEnd()
+        $lineLength = $trimLine.Length
+        $leftPad = $ExtraMargin + [math]::Floor(($availableWidth - $lineLength) / 2)
+        $padSpaces = " " * $leftPad
+        Write-Host "$padSpaces$trimLine" -ForegroundColor $MenuDefaultForeground
+    }
+
+    # Now render the submenu starting at $SubmenuStartRow.
+    $startClear = $SubmenuStartRow
+    $endClear = [console]::WindowHeight - 1
+    for ($r = $startClear; $r -le $endClear; $r++) {
+        [console]::SetCursorPosition(0, $r)
+        Write-Host (" " * $consoleWidth)
+    }
+
+    # Print header above submenu. Here we want only the company name text to be highlighted.
+    $headerPrefix = "╓"
+    $headerText = $companyName
+    [console]::SetCursorPosition(0, $startClear)
+    Write-Host "$marginSpaces$headerPrefix" -NoNewline
+    Write-Host $headerText -ForegroundColor $MenuHighlightForeground -BackgroundColor $MenuHighlightBackground
 
     $selectedIndex = 0
     $exitSubmenu = $false
     while (-not $exitSubmenu) {
-        # Print submenu items with aesthetic prefixes.
         for ($i = 0; $i -lt $submenuItems.Count; $i++) {
+            $row = $startClear + 1 + $i
+            [console]::SetCursorPosition(0, $row)
             if ($i -eq ($submenuItems.Count - 1)) {
                 $prefix = "╚═ "
-            } else {
+            }
+            else {
                 $prefix = "╠═ "
             }
             $itemText = $submenuItems[$i].Title
-            $displayText = $prefix + $itemText
-            # When selected, highlight only the text part (excluding prefix).
+            $paddedText = $itemText.PadRight($maxLength)
+            $linePrefix = $marginSpaces + $prefix
+            $fullLine = $linePrefix + $paddedText
             if ($i -eq $selectedIndex) {
-                $prefixLen = $prefix.Length
-                $consoleWidth = [console]::WindowWidth
-                $textWidth = $consoleWidth - $prefixLen
-                $paddedText = $itemText.PadRight($textWidth)
-                Write-Host $prefix -NoNewline
+                Write-Host $linePrefix -NoNewline
                 Write-Host $paddedText -ForegroundColor $MenuHighlightForeground -BackgroundColor $MenuHighlightBackground
-            } else {
-                Write-Host $displayText -ForegroundColor $MenuDefaultForeground
+            }
+            else {
+                Write-Host $fullLine -ForegroundColor $MenuDefaultForeground -BackgroundColor "Black"
             }
         }
         $key = [console]::ReadKey($true)
         switch ($key.Key) {
             'UpArrow' {
-                if ($selectedIndex -eq 0) {
-                    $selectedIndex = $submenuItems.Count - 1
-                }
-                else {
-                    $selectedIndex--
-                }
+                if ($selectedIndex -eq 0) { $selectedIndex = $submenuItems.Count - 1 } else { $selectedIndex-- }
             }
             'DownArrow' {
-                if ($selectedIndex -eq ($submenuItems.Count - 1)) {
-                    $selectedIndex = 0
-                }
-                else {
-                    $selectedIndex++
-                }
+                if ($selectedIndex -eq ($submenuItems.Count - 1)) { $selectedIndex = 0 } else { $selectedIndex++ }
             }
             'Enter' {
                 $exitSubmenu = $true
@@ -353,13 +403,12 @@ function Process-Manifest {
         Write-Host "Error downloading manifest: $_" -ForegroundColor Red
         return
     }
-    # Here, you would parse the manifest file, download its files into the appropriate company folder,
-    # and then prompt the user to confirm launching the deployment script.
+    # (Parse manifest, download files, then prompt user for deployment.)
     Write-Host "Manifest processing for $companyName would occur here." -ForegroundColor Cyan
     $confirm = Read-Host "Deploy Onboarding Script? (y/n)"
     if ($confirm.ToLower() -eq "y") {
         Write-Host "Launching deployment script for $companyName..."
-        # For example, launch the deploy.ps1 that was downloaded.
+        # Launch deployment script here.
     }
     else {
         Write-Host "Deployment cancelled. Returning to main menu."
@@ -399,8 +448,6 @@ function Setup-Company {
     param(
         [string]$companyName
     )
-
-    # Convert company name to folder-friendly name (if needed)
     $companyFolderName = $companyName -replace '\s+', '-'
     $companyBannerDir = Join-Path "$BaseDir\Company_Banners" $companyFolderName
     $companyScriptsDir = Join-Path "$BaseDir\Company_Scripts" $companyFolderName
@@ -419,7 +466,6 @@ function Setup-Company {
     }
     $manifestUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/$companyFolderName/manifest.txt"
     Write-MainLog "Using manifest URL: $manifestUrl"
-    # (Proceed with existing manifest processing...)
     Write-Host "Proceeding with standard manifest processing for $companyName." -ForegroundColor Cyan
     return @{ 
         BannerDir = $companyBannerDir; 
@@ -459,7 +505,6 @@ function Cleanup-CompanyFolders {
 $confirmed = $false
 while (-not $confirmed) {
 
-    # Show main menu from mainmenu.txt
     $selectedOption = Show-MainMenu
     if ($selectedOption -eq "Quit") {
         Write-Host "Exiting script. Goodbye!" -ForegroundColor Cyan
@@ -467,14 +512,13 @@ while (-not $confirmed) {
         exit
     }
 
-    # Attempt to retrieve submenu.txt for the selected main menu item.
     $submenuItems = Get-Submenu -companyName $selectedOption
     if ($submenuItems) {
-        $selectedSubmenuItem = Show-Submenu -companyName $selectedOption -submenuItems $submenuItems
+        $selectedSubmenuItem = Show-Submenu -companyName $selectedOption -submenuItems $submenuItems -SubmenuStartRow $SubmenuStartRow
         switch ($selectedSubmenuItem.ActionType.ToUpper()) {
             "BACK" {
                 Write-MainLog "User selected Go back in submenu for $selectedOption."
-                continue  # Return to main menu loop.
+                continue
             }
             "MANIFEST" {
                 Process-Manifest -companyName $selectedOption -manifestUrl $selectedSubmenuItem.ActionContent
@@ -492,15 +536,12 @@ while (-not $confirmed) {
         }
     }
     else {
-        # If no submenu.txt is available, fall back to standard manifest processing.
         $companySetup = Setup-Company -companyName $selectedOption
-        # Prompt user for confirmation to deploy as per original behavior.
         $deployConfirm = Read-Host "No submenu available. Deploy onboarding script for $selectedOption? (y/n)"
         if ($deployConfirm.ToLower() -ne "y") {
             Write-Host "Deployment cancelled. Returning to main menu."
             continue
         }
-        # Launch deployment using the downloaded deploy.ps1.
         try {
             Write-Host "Launching $selectedOption onboarding script..." -ForegroundColor Cyan
             Write-Host "Using script file: $($companySetup.DeployPS1)" -ForegroundColor Cyan
@@ -509,15 +550,13 @@ while (-not $confirmed) {
         }
         catch {
             Write-Host "Error launching company script: $_" -ForegroundColor Red
-            Write-MainLog "Error launching company script for $selectedOption: $_"
+            Write-MainLog "Error launching company script for $selectedOption-- $_"
             Write-Host "Press any key to exit..."
             $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
             exit
         }
     }
     Write-MainLog "Main script finished."
-    # After processing a submenu action, return to the main menu.
     Write-Host "Press any key to return to the main menu..."
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
-

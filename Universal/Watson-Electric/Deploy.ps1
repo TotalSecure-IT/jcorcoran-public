@@ -8,8 +8,17 @@ param(
 # ====================
 
 # Create a new log filename with a timestamp
-$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $usbroot = Split-Path $ConfigPath -Parent
+$timestamp = Get-Date -Format "yyyy-MM-dd_HHmm"
+
+# If $ConfigPath is empty, default it to $PSScriptRoot; otherwise, use its parent as the USB root.
+if (-not $ConfigPath) {
+    $usbroot = $PSScriptRoot
+} else {
+    $usbroot = Split-Path $ConfigPath -Parent
+}
+
+# Create the log file path in the usbroot\logs folder with the new naming convention.
 $logFile = Join-Path (Join-Path $usbroot "logs") "$CompanyFolderName.$timestamp.log"
 
 # Global variable for the winget download info
@@ -29,7 +38,7 @@ function Write-Log {
         [Parameter(Mandatory)]
         [string]$Message
     )
-    $timestamp = Get-Date -Format "yyyy-MM-dd_HHmm"
+    $timeStampLine = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Add-Content -Path $logFile -Value "$timeStampLine - $Message"
 }
 

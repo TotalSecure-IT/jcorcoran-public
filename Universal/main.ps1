@@ -458,11 +458,27 @@ function Setup-Company {
     param(
         [string]$companyName
     )
+    # Default to "DefaultCompany" if no company name is provided.
+    if (-not $companyName -or $companyName -eq "") {
+        $companyName = "DefaultCompany"
+    }
+    
+    # Replace spaces with dashes to form the folder name.
     $companyFolderName = $companyName -replace '\s+', '-'
-    $companyBannerDir = Join-Path $UsbRoot "Company_Banners\$companyFolderName"
-    $companyScriptsDir = Join-Path $UsbRoot "Company_Scripts\$companyFolderName"
-    if (-not (Test-Path $companyBannerDir)) { New-Item -Path $companyBannerDir -ItemType Directory -Force | Out-Null }
-    if (-not (Test-Path $companyScriptsDir)) { New-Item -Path $companyScriptsDir -ItemType Directory -Force | Out-Null }
+    
+    # Build the full paths for the banner and scripts directories.
+    $companyBannerDir = Join-Path (Join-Path $UsbRoot "Company_Banners") $companyFolderName
+    $companyScriptsDir = Join-Path (Join-Path $UsbRoot "Company_Scripts") $companyFolderName
+    
+    # Create the directories if they do not exist.
+    if (-not (Test-Path $companyBannerDir)) {
+        New-Item -Path $companyBannerDir -ItemType Directory -Force | Out-Null
+    }
+    if (-not (Test-Path $companyScriptsDir)) {
+        New-Item -Path $companyScriptsDir -ItemType Directory -Force | Out-Null
+    }
+    
+    # Return a hashtable with the key paths and the folder name.
     return @{ 
         BannerDir  = $companyBannerDir; 
         ScriptsDir = $companyScriptsDir; 

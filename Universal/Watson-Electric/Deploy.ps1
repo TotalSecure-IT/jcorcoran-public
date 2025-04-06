@@ -373,60 +373,6 @@ $appsToInstall = $appsToInstall + $wingetApps
 # ====================
 # ENVIRONMENT CHECKS
 # ====================
-$inPS7 = $PSVersionTable.PSVersion.Major -ge 7
-if (-not $inPS7) {
-    if ((Get-ExecutionPolicy -Scope Process) -ne "Bypass") {
-        Write-Host "Not running with Bypass exec policy. Relaunching..."
-        Write-Log "Relaunching with Bypass execution policy."
-        Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
-        exit
-    }
-    if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)) {
-        Write-Warning "Need admin rights. Relaunching..."
-        Write-Log "Relaunching as administrator."
-        Start-Process -FilePath "powershell" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
-        exit
-    }
-    $pwshPath = "C:\Program Files\PowerShell\7\pwsh.exe"
-    if (Test-Path $pwshPath) {
-        Write-Host "Found PS7. Switching over..."
-        Write-Log "Switching to PS7."
-        Start-Process -FilePath $pwshPath -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" 
-        exit
-    }
-    else {
-        Write-Host "PS7 is required. Detected version: $($PSVersionTable.PSVersion)" -ForegroundColor Yellow
-        Write-Log "PS7 not found; current version: $($PSVersionTable.PSVersion)."
-        if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-            Write-Error "Winget not found. Please update PS manually."
-            Read-Host "Press Enter to exit..."
-            exit 1
-        }
-        Write-Host "Updating winget..." -ForegroundColor Cyan
-        Write-Log "Updating winget..."
-        winget upgrade winget --silent --nowarn --verbose --force --disable-interactivity --accept-source-agreements
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "Winget update installed successfully." -ForegroundColor Green
-            Write-Log "Winget update installed successfully"
-        }
-        else {
-            Write-Error "No winget updates available."
-            Write-Log "No winget updates available."
-        }
-        Write-Host "Trying to install PS7 via winget..." -ForegroundColor Cyan
-        Write-Log "Attempting to install PS7 via winget."
-        winget install --id Microsoft.PowerShell --source winget --silent --accept-package-agreements --accept-source-agreements --force --verbose --nowarn --disable-interactivity
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "PS7 installation started. Please restart this script in PS7." -ForegroundColor Green
-            Write-Log "PS7 installation initiated successfully."
-        }
-        else {
-            Write-Error "PS7 install failed. Update Winget."
-            Write-Log "PS7 install failed. Update Winget."
-        }
-        exit 1
-    }
-}
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 

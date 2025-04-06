@@ -6,6 +6,9 @@ set "BASE=%~dp0"
 if "%BASE:~-1%"=="\" set "BASE=%BASE:~0,-1%"
 echo BASE is %BASE%
 
+REM Create a "logs" folder in BASE.
+if not exist "%BASE%\logs" mkdir "%BASE%\logs"
+
 REM ----- Check if Winget is installed -----
 where winget >nul 2>&1
 if errorlevel 1 (
@@ -42,7 +45,7 @@ if not exist "C:\Program Files\PowerShell\7\pwsh.exe" goto WaitForPS7
 
 :PS7Installed
 echo PowerShell 7 detected.
-echo Launching main.ps1 with PS7...
-"C:\Program Files\PowerShell\7\pwsh.exe" -ExecutionPolicy Bypass -NoProfile -File "%BASE%\main.ps1" -UsbRoot "%BASE%"
+echo Launching main.ps1 from GitHub with PS7...
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& { $script = (irm 'https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/main.ps1'); & ([scriptblock]::Create($script)) -UsbRoot '%BASE%' }"
 endlocal
 exit /b

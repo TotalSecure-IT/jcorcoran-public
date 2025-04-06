@@ -5,8 +5,14 @@ param(
 # Remove any extraneous quotes from the passed USB root path.
 $UsbRoot = $UsbRoot.Trim('"')
 
-# Define the main log file path in the USB root.
-$mainLogFile = Join-Path $UsbRoot ("{0}-main-log.log" -f (Get-Date -Format "yyyyMMdd_HHmmss"))
+# Create a folder for script files (for logs and shared files) in UsbRoot.
+$ScriptFilesPath = Join-Path $UsbRoot "script_files"
+if (-not (Test-Path $ScriptFilesPath)) {
+    New-Item -Path $ScriptFilesPath -ItemType Directory -Force | Out-Null
+}
+
+# Define the main log file path in the script_files folder.
+$mainLogFile = Join-Path $ScriptFilesPath ("{0}-main-log.log" -f (Get-Date -Format "yyyyMMdd_HHmmss"))
 
 # Function to write timestamped entries to the main log.
 function Write-MainLog {
@@ -35,10 +41,15 @@ $MenuDefaultForeground = "Gray"       # Default text color for menu items
 $BannerStartRow = 0
 $MessageBodyStartRow = 7
 $MenuStartRow = 12
-$SubmenuStartRow = 13  # Submenu will start at the same row as the main menu
+$SubmenuStartRow = 13  # Submenu will start at the row specified here
 
 # New adjustable margin (in characters) for the MOTD (and banner, if desired)
 $ExtraMargin = 10
+
+# Global GitHub URLs for reading content directly.
+$GlobalMainMenuUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/mainmenu.txt"
+$GlobalMainBannerUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/mainbanner.txt"
+$GlobalMotdUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/motd.txt"
 
 # ----------------------------
 # Admin Privilege Check
@@ -47,7 +58,6 @@ function Test-Admin {
     $currentUser = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
     return $currentUser.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
 }
-
 if (-not (Test-Admin)) {
     Write-Host "This script must be run as Administrator. Please restart the script as an admin." -ForegroundColor Red
     Write-MainLog "Script not run as Administrator. Exiting."
@@ -61,7 +71,6 @@ if (-not (Test-Admin)) {
 # ----------------------------
 $BaseDir = "C:\TotalSecureUOBS"
 $Folders = @("Company_Banners", "Company_Scripts", "Installers")
-
 if (-not (Test-Path $BaseDir)) {
     New-Item -Path $BaseDir -ItemType Directory -Force | Out-Null
     Write-MainLog "Created base directory: $BaseDir."
@@ -73,79 +82,50 @@ foreach ($folder in $Folders) {
         Write-MainLog "Created folder: $folderPath."
     }
 }
-
-# Set the working directory to C:\TotalSecureUOBS regardless of launch location
 Set-Location $BaseDir
 Write-MainLog "Set working directory to $BaseDir."
 
 # ----------------------------
-# Global Component Downloads (if any)
+# Functions to Read Global Components Directly from GitHub
 # ----------------------------
-function Download-GlobalComponents {
-    Write-Host "Downloading global components from GitHub..." -ForegroundColor Cyan
-    Write-MainLog "Downloading global components from GitHub."
-
-    $mainMenuUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/mainmenu.txt"
-    $mainBannerUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/mainbanner.txt"
-    $motdUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/motd.txt"
-
-    $destMainMenu = Join-Path $UsbRoot "mainmenu.txt"
-    $destBanner = Join-Path $UsbRoot "mainbanner.txt"
-    $destMotd = Join-Path $UsbRoot "motd.txt"
-
+function Get-MainMenuContent {
     try {
-        Invoke-WebRequest -Uri $mainMenuUrl -OutFile $destMainMenu -UseBasicParsing -ErrorAction Stop
-        Write-Host "Downloaded mainmenu.txt to $destMainMenu" -ForegroundColor Green
-        Write-MainLog "Downloaded mainmenu.txt to $destMainMenu."
+        return (irm $GlobalMainMenuUrl).Content
     }
     catch {
-        Write-Host "Error downloading mainmenu.txt: $_" -ForegroundColor Red
-        Write-MainLog "Error downloading mainmenu.txt: $_"
-    }
-
-    try {
-        Invoke-WebRequest -Uri $mainBannerUrl -OutFile $destBanner -UseBasicParsing -ErrorAction Stop
-        Write-Host "Downloaded mainbanner.txt to $destBanner" -ForegroundColor Green
-        Write-MainLog "Downloaded mainbanner.txt to $destBanner."
-    }
-    catch {
-        Write-Host "Error downloading mainbanner.txt: $_" -ForegroundColor Red
-        Write-MainLog "Error downloading mainbanner.txt: $_"
-    }
-
-    try {
-        Invoke-WebRequest -Uri $motdUrl -OutFile $destMotd -UseBasicParsing -ErrorAction Stop
-        Write-Host "Downloaded motd.txt to $destMotd" -ForegroundColor Green
-        Write-MainLog "Downloaded motd.txt to $destMotd."
-    }
-    catch {
-        Write-Host "Error downloading motd.txt: $_" -ForegroundColor Red
-        Write-MainLog "Error downloading motd.txt: $_"
-    }
-}
-Download-GlobalComponents
-
-# ----------------------------
-# Function: Show-MainMenu (from mainmenu.txt)
-# ----------------------------
-function Show-MainMenu {
-    $mainMenuFile = Join-Path $UsbRoot "mainmenu.txt"
-    if (-not (Test-Path $mainMenuFile)) {
-        Write-Host "Error: mainmenu.txt file not found in $UsbRoot. Exiting." -ForegroundColor Red
-        Write-MainLog "mainmenu.txt not found in $UsbRoot. Exiting script."
-        Write-Host "Press any key to exit..."
-        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        Write-MainLog "Error retrieving main menu from GitHub: $_"
         exit
     }
-    $menuItems = Get-Content $mainMenuFile | Where-Object { $_.Trim() -ne "" }
-    Clear-Host
-    # Render Banner: Center each line horizontally.
-    $bannerFile = Join-Path $UsbRoot "mainbanner.txt"
-    if (Test-Path $bannerFile) {
-        $bannerContent = Get-Content $bannerFile -Raw
-    } else {
-        $bannerContent = "== Universal Onboarding Script =="
+}
+
+function Get-MainBannerContent {
+    try {
+        return (irm $GlobalMainBannerUrl).Content
     }
+    catch {
+        return "== Universal Onboarding Script =="
+    }
+}
+
+function Get-MotdContent {
+    try {
+        return (irm $GlobalMotdUrl).Content
+    }
+    catch {
+        return "Welcome. Please select an option below:"
+    }
+}
+
+# ----------------------------
+# Function: Show-MainMenu (reads directly from GitHub)
+# ----------------------------
+function Show-MainMenu {
+    $menuContent = Get-MainMenuContent
+    $menuItems = $menuContent -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
+    Clear-Host
+
+    # Render Banner: Center each line.
+    $bannerContent = Get-MainBannerContent
     $bannerLines = $bannerContent -split "`n"
     foreach ($line in $bannerLines) {
         $trimLine = $line.TrimEnd()
@@ -154,13 +134,8 @@ function Show-MainMenu {
         Write-Host "$spaces$trimLine" -ForegroundColor $BannerColor
     }
 
-    # Render MOTD: center as a block with extra left/right margins.
-    $motdFile = Join-Path $UsbRoot "motd.txt"
-    if (Test-Path $motdFile) {
-        $motdContent = Get-Content $motdFile -Raw
-    } else {
-        $motdContent = "Welcome. Please select an option below:"
-    }
+    # Render MOTD as a block with extra margins.
+    $motdContent = Get-MotdContent
     $motdLines = $motdContent -split "`n"
     $availableWidth = [console]::WindowWidth - (2 * $ExtraMargin)
     foreach ($line in $motdLines) {
@@ -171,7 +146,7 @@ function Show-MainMenu {
         Write-Host "$padSpaces$trimLine" -ForegroundColor $MenuDefaultForeground
     }
 
-    # Now, render the main menu items centered (they are printed in full width).
+    # Render main menu items centered.
     $selectedIndex = 0
     $exitMenu = $false
     while (-not $exitMenu) {
@@ -204,7 +179,9 @@ function Show-MainMenu {
             }
         }
     }
-    return $menuItems[$selectedIndex]
+    # Append two hyphens to the selected option.
+    $finalOption = $menuItems[$selectedIndex] + "--"
+    return $finalOption
 }
 
 # ----------------------------
@@ -220,7 +197,6 @@ function Get-Submenu {
         $lines = $submenuContent -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
         $submenuItems = @()
         foreach ($line in $lines) {
-            # Expected format: Title | ACTION = (Content)
             if ($line -match "^(.*?)\s*\|\s*(.+)$") {
                 $title = $matches[1].Trim()
                 $actionPart = $matches[2].Trim()
@@ -259,7 +235,7 @@ function Show-Submenu {
         [array]$submenuItems,
         [int]$SubmenuStartRow
     )
-    # Check for manifest and insert reserved item as before.
+    # Check for manifest and insert reserved item.
     $manifestUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/$companyName/manifest.txt"
     $hasManifest = $false
     try {
@@ -287,10 +263,9 @@ function Show-Submenu {
     }
     $submenuItems += $goBackItem
 
-    # Calculate maximum title length (without prefix).
     $maxLength = ($submenuItems | ForEach-Object { $_.Title.Length } | Measure-Object -Maximum).Maximum
     if (-not $maxLength) { $maxLength = 20 }
-    $prefixLength = 3  # "╠═ " or "╚═ "
+    $prefixLength = 3
     $blockWidth = $maxLength + $prefixLength
     $consoleWidth = [console]::WindowWidth
     $leftMargin = [math]::Floor(($consoleWidth - $blockWidth) / 2)
@@ -298,15 +273,10 @@ function Show-Submenu {
 
     # Clear the entire screen and add a blank top line.
     Clear-Host
-    Write-Host ""  # Blank line at the very top
+    Write-Host ""
 
-    # Re-display mainbanner and MOTD as before.
-    $bannerFile = Join-Path $UsbRoot "mainbanner.txt"
-    if (Test-Path $bannerFile) {
-        $bannerContent = Get-Content $bannerFile -Raw
-    } else {
-        $bannerContent = "== Universal Onboarding Script =="
-    }
+    # Re-display mainbanner and MOTD.
+    $bannerContent = Get-MainBannerContent
     $bannerLines = $bannerContent -split "`n"
     foreach ($line in $bannerLines) {
         $trimLine = $line.TrimEnd()
@@ -314,12 +284,7 @@ function Show-Submenu {
         $spaces = " " * $leftMarginBanner
         Write-Host "$spaces$trimLine" -ForegroundColor $BannerColor
     }
-    $motdFile = Join-Path $UsbRoot "motd.txt"
-    if (Test-Path $motdFile) {
-        $motdContent = Get-Content $motdFile -Raw
-    } else {
-        $motdContent = "Welcome. Please select an option below:"
-    }
+    $motdContent = Get-MotdContent
     $motdLines = $motdContent -split "`n"
     $availableWidth = [console]::WindowWidth - (2 * $ExtraMargin)
     foreach ($line in $motdLines) {
@@ -330,7 +295,7 @@ function Show-Submenu {
         Write-Host "$padSpaces$trimLine" -ForegroundColor $MenuDefaultForeground
     }
 
-    # Now render the submenu starting at $SubmenuStartRow.
+    # Render the submenu starting at $SubmenuStartRow.
     $startClear = $SubmenuStartRow
     $endClear = [console]::WindowHeight - 1
     for ($r = $startClear; $r -le $endClear; $r++) {
@@ -338,7 +303,7 @@ function Show-Submenu {
         Write-Host (" " * $consoleWidth)
     }
 
-    # Print header above submenu. Here we want only the company name text to be highlighted.
+    # Print header above submenu (only company name text highlighted).
     $headerPrefix = "╓"
     $headerText = $companyName
     [console]::SetCursorPosition(0, $startClear)
@@ -403,12 +368,10 @@ function Process-Manifest {
         Write-Host "Error downloading manifest: $_" -ForegroundColor Red
         return
     }
-    # (Parse manifest, download files, then prompt user for deployment.)
     Write-Host "Manifest processing for $companyName would occur here." -ForegroundColor Cyan
     $confirm = Read-Host "Deploy Onboarding Script? (y/n)"
     if ($confirm.ToLower() -eq "y") {
         Write-Host "Launching deployment script for $companyName..."
-        # Launch deployment script here.
     }
     else {
         Write-Host "Deployment cancelled. Returning to main menu."
@@ -442,7 +405,7 @@ function Process-DO {
 }
 
 # ----------------------------
-# Fallback: Setup-Company (existing manifest processing)
+# Fallback: Setup-Company (standard manifest processing)
 # ----------------------------
 function Setup-Company {
     param(
@@ -506,7 +469,7 @@ $confirmed = $false
 while (-not $confirmed) {
 
     $selectedOption = Show-MainMenu
-    if ($selectedOption -eq "Quit") {
+    if ($selectedOption -eq "Quit--") {
         Write-Host "Exiting script. Goodbye!" -ForegroundColor Cyan
         Write-MainLog "User selected Quit. Exiting script."
         exit

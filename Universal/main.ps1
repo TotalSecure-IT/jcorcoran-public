@@ -69,7 +69,7 @@ if (-not (Test-Admin)) {
 # ----------------------------
 # Create Required Folder Structure in UsbRoot
 # ----------------------------
-# (FOLDERS: Company_Banners, Company_Scripts, Installers will be created in UsbRoot)
+# (Folders: Company_Banners, Company_Scripts, Installers will be created in UsbRoot)
 $RequiredFolders = @("Company_Banners", "Company_Scripts", "Installers")
 foreach ($folder in $RequiredFolders) {
     $folderPath = Join-Path $UsbRoot $folder
@@ -95,7 +95,7 @@ function Get-ContentFromUrl {
         return $response.Content
     }
     catch {
-        Write-MainLog "Error retrieving content from $url-- $_"
+        Write-MainLog "Error retrieving content from $url -- $_"
         return ""
     }
 }
@@ -119,7 +119,6 @@ function Get-MotdContent {
 # ----------------------------
 function Show-MainMenu {
     $menuContent = Get-MainMenuContent
-    # Use regex to split on CRLF or LF.
     $menuItems = $menuContent -split "\r?\n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
     Clear-Host
 
@@ -265,7 +264,7 @@ function Show-Submenu {
 
     # Clear the entire screen and add a blank top line.
     Clear-Host
-    Write-Host ""  # Blank line at the very top
+    Write-Host ""  # Blank line at the top
 
     # Re-display mainbanner and MOTD.
     $bannerContent = Get-MainBannerContent
@@ -351,24 +350,80 @@ function Process-Manifest {
         [string]$manifestUrl
     )
     Write-Host "Processing manifest for $companyName from $manifestUrl" -ForegroundColor Cyan
-    $tempManifestFile = Join-Path $env:TEMP "manifest_$companyName.txt"
     try {
-        Invoke-WebRequest -Uri $manifestUrl -OutFile $tempManifestFile -UseBasicParsing -ErrorAction Stop
-        Write-MainLog "Downloaded manifest for $companyName from submenu."
+        $manifestContent = (Invoke-WebRequest -Uri $manifestUrl -UseBasicParsing -ErrorAction Stop).Content
+        Write-MainLog "Downloaded manifest for $companyName from $manifestUrl"
     }
     catch {
         Write-Host "Error downloading manifest: $_" -ForegroundColor Red
         return
     }
-    Write-Host "Manifest processing for $companyName would occur here." -ForegroundColor Cyan
-    $confirm = Read-Host "Deploy Onboarding Script? (y/n)"
-    if ($confirm.ToLower() -eq "y") {
-        Write-Host "Launching deployment script for $companyName..."
+    # Parse manifest: expecting each line as: filename = "url"
+    $lines = $manifestContent -split "\r?\n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
+    if ($lines.Count -eq 0) {
+        Write-Host "Manifest file is empty." -ForegroundColor Red
+        return
+    }
+    $companyFolderName = $companyName -replace '\s+', '-'
+    $bannerDir = Join-Path $UsbRoot "Company_Banners\$companyFolderName"
+    $scriptsDir = Join-Path $UsbRoot "Company_Scripts\$companyFolderName"
+    if (-not (Test-Path $bannerDir)) { New-Item -Path $bannerDir -ItemType Directory -Force | Out-Null; Write-MainLog "Created company banner directory: $bannerDir" }
+    if (-not (Test-Path $scriptsDir)) { New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null; Write-MainLog "Created company scripts directory: $scriptsDir" }
+    
+    $downloadedFiles = @()
+    foreach ($line in $lines) {
+        if ($line -match "^(.*?)\s*=\s*\"(.*?)\"$") {
+            $filename = $matches[1].Trim()
+            $fileUrl = $matches[2].Trim()
+            if ($filename -ieq "banner.txt") {
+                $dest = Join-Path $bannerDir $filename
+            }
+            else {
+                $dest = Join-Path $scriptsDir $filename
+            }
+            try {
+                Invoke-WebRequest -Uri $fileUrl -OutFile $dest -UseBasicParsing -ErrorAction Stop
+                Write-Host "Downloaded $filename to $dest" -ForegroundColor Green
+                Write-MainLog "Downloaded $filename to $dest"
+                $downloadedFiles += $dest
+            }
+            catch {
+                Write-Host "Error downloading $filename from $fileUrl: $_" -ForegroundColor Red
+                Write-MainLog "Error downloading $filename from $fileUrl: $_"
+            }
+        }
+        else {
+            Write-Host "Invalid manifest line format: $line" -ForegroundColor Yellow
+            Write-MainLog "Invalid manifest line format: $line"
+        }
+    }
+    
+    # Determine if any .bat or .ps1 file was downloaded (prefer .bat if available)
+    $batFile = $downloadedFiles | Where-Object { $_ -match "\.bat$" }
+    $ps1File = $downloadedFiles | Where-Object { $_ -match "\.ps1$" }
+    if ($batFile) {
+        $prompt = Read-Host "Execute .bat file ($batFile)? (y/n)"
+        if ($prompt.ToLower() -eq "y") {
+            Write-Host "Executing $batFile..."
+            & $batFile
+        }
+        else {
+            Write-Host "Execution of $batFile cancelled."
+        }
+    }
+    elseif ($ps1File) {
+        $prompt = Read-Host "Execute .ps1 file ($ps1File)? (y/n)"
+        if ($prompt.ToLower() -eq "y") {
+            Write-Host "Executing $ps1File..."
+            & $ps1File
+        }
+        else {
+            Write-Host "Execution of $ps1File cancelled."
+        }
     }
     else {
-        Write-Host "Deployment cancelled. Returning to main menu."
+        Write-Host "No executable script (.bat or .ps1) found in manifest."
     }
-    Remove-Item $tempManifestFile -Force
 }
 
 function Process-Script {
@@ -423,10 +478,10 @@ function Setup-Company {
     Write-MainLog "Using manifest URL: $manifestUrl"
     Write-Host "Proceeding with standard manifest processing for $companyName." -ForegroundColor Cyan
     return @{ 
-        BannerDir = $companyBannerDir; 
-        ScriptsDir = $companyScriptsDir; 
-        DeployPS1 = Join-Path $companyScriptsDir "deploy.ps1"; 
-        FolderName = $companyFolderName 
+        BannerDir   = $companyBannerDir; 
+        ScriptsDir  = $companyScriptsDir; 
+        DeployPS1   = Join-Path $companyScriptsDir "deploy.ps1"; 
+        FolderName  = $companyFolderName 
     }
 }
 

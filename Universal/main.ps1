@@ -542,7 +542,7 @@ while (-not $confirmed) {
             Write-Host "Launching $selectedOption onboarding script..." -ForegroundColor Cyan
             Write-Host "Using script file: $($companySetup.DeployPS1)" -ForegroundColor Cyan
             Write-MainLog "Launching deploy script for $selectedOption."
-            & $companySetup.DeployPS1 -ConfigPath (Join-Path (Join-Path $UsbRoot "configs") $companySetup.FolderName) -CompanyFolderName $companySetup.FolderName
+            & $companySetup.DeployPS1 -ConfigPath (Join-Path (Join-Path $UsbRoot "configs") $companySetup.FolderName) -CompanyFolderName "$($companySetup.FolderName)"
         }
         catch {
             Write-Host "Error launching company script: $_" -ForegroundColor Red

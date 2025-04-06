@@ -1,5 +1,6 @@
 param(
     [string]$ConfigPath,
+    [Parameter(Mandatory = $true)]
     [string]$CompanyFolderName
 )
 
@@ -18,7 +19,7 @@ if ([string]::IsNullOrEmpty($ConfigPath)) {
 }
 
 # Ensure CompanyFolderName is provided; if not, default to "DefaultCompany".
-if ([string]::IsNullOrEmpty($CompanyFolderName)) {
+if (-not $CompanyFolderName -or $CompanyFolderName -eq "") {
     Write-Host "CompanyFolderName parameter not provided. Defaulting to 'DefaultCompany'." -ForegroundColor Yellow
     $CompanyFolderName = "DefaultCompany"
 }

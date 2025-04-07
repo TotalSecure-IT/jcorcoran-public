@@ -5,19 +5,45 @@ Clear-Host
 $workingDir = Split-Path -Parent $PSScriptRoot
 Set-Location $workingDir
 
+# Start robust logging
+$logDir = Join-Path $workingDir "logs"
+# Create a timestamp for the log filename using date and 12hr time format
+$dateStamp = Get-Date -Format "yyyy-MM-dd"
+$timeStamp = Get-Date -Format "hh-mm-sstt"  # e.g., 08-30-45PM
+$logFileName = "Poly.PKit_${dateStamp}@${timeStamp}.log"
+$logFilePath = Join-Path $logDir $logFileName
+
+# Create the log file with an initial header entry
+"Starting Poly.PKit log - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Out-File -FilePath $logFilePath
+
+# Define a robust logging function for use throughout the script and by future modules
+function Write-Log {
+    param (
+        [string]$message
+    )
+    $logTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff"
+    $logEntry = "[$logTimestamp] $message"
+    Add-Content -Path $logFilePath -Value $logEntry
+}
+
+Write-Log "Log file created: $logFileName"
+
 # Check for mode flags passed as arguments and act accordingly
 if ($args -contains '--online-mode') {
     Write-Host "Mode:" -NoNewline
     Write-Host " ONLINE" -ForegroundColor Green
+    Write-Log "Running in ONLINE mode."
 
     # In ONLINE mode, verbosely check/create the folder structure.
-    # Note: "configs" should already exist since it contains secret offline files.
+    # "configs" should already exist since it contains secret offline files.
     $configsPath = Join-Path $workingDir "configs"
     if (-Not (Test-Path -Path $configsPath)) {
          Write-Host "Warning: 'configs' folder not found. It should exist prior to script launch." -ForegroundColor Yellow
+         Write-Log "Warning: 'configs' folder not found."
     }
     else {
          Write-Host "'configs' folder exists."
+         Write-Log "'configs' folder exists."
     }
 
     # Create "Orgs" and "modules" folders if they do not exist.
@@ -26,17 +52,21 @@ if ($args -contains '--online-mode') {
         $folderPath = Join-Path $workingDir -ChildPath $folder
         if (-Not (Test-Path -Path $folderPath)) {
             Write-Host "Creating folder '$folder'..."
+            Write-Log "Creating folder '$folder'."
             New-Item -ItemType Directory -Path $folderPath | Out-Null
         }
         else {
             Write-Host "Folder '$folder' already exists."
+            Write-Log "Folder '$folder' already exists."
         }
     }
 }
 elseif ($args -contains '--cached-mode') {
     Write-Host "Mode:" -NoNewline
     Write-Host " CACHED" -ForegroundColor Red
+    Write-Log "Running in CACHED mode. Folder creation skipped."
 }
 else {
     Write-Host "No mode specified."
+    Write-Log "No mode specified. Default behavior invoked."
 }

@@ -1,11 +1,11 @@
 # Clear the screen immediately upon launch
 Clear-Host
 
-# Set working directory to the parent of the script's folder
+# Set working directory to the parent of the script's folder (assumes main.ps1 is in the "init" folder)
 $workingDir = Split-Path -Parent $PSScriptRoot
 Set-Location $workingDir
 
-# Start logging
+# Start robust logging
 $logDir = Join-Path $workingDir "logs"
 # Create a timestamp for the log filename using date and 12hr time format
 $dateStamp = Get-Date -Format "yyyy-MM-dd"
@@ -13,10 +13,10 @@ $timeStamp = Get-Date -Format "hh-mm-sstt"  # e.g., 08-30-45PM
 $logFileName = "Poly.PKit_${dateStamp}@${timeStamp}.log"
 $logFilePath = Join-Path $logDir $logFileName
 
-# Create the log file with a header entry
+# Create the primary log file with an initial header entry
 "Starting Poly.PKit log - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Out-File -FilePath $logFilePath
 
-# Logging function
+# Define a robust logging function for use throughout the script and by future modules
 function Write-Log {
     param (
         [string]$message
@@ -28,7 +28,16 @@ function Write-Log {
 
 Write-Log "Log file created: $logFileName"
 
-# Check for mode flags passed as arguments
+# Gather advanced system details and save them under logs as {hostname}.log
+$hostName = $env:COMPUTERNAME
+$systemLogFile = Join-Path $logDir "$hostName.log"
+"System Details for $hostName - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Out-File -FilePath $systemLogFile
+"--------------------------------------------------------" | Out-File -Append -FilePath $systemLogFile
+$systemDetails = Get-ComputerInfo | Out-String
+$systemDetails | Out-File -Append -FilePath $systemLogFile
+Write-Log "System details logged to $systemLogFile"
+
+# Check for mode flags passed as arguments and act accordingly
 if ($args -contains '--online-mode') {
     Write-Host "Mode:" -NoNewline
     Write-Host " ONLINE" -ForegroundColor Green

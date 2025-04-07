@@ -4,9 +4,9 @@ Clear-Host
 $workingDir = Split-Path -Parent $PSScriptRoot
 Set-Location $workingDir
 
-##############################################
+
 # Logger Module Acquisition & Import Section #
-##############################################
+
 
 # Determine the init folder (where main.ps1 resides) and the modules folder inside it
 $initDir = $PSScriptRoot
@@ -20,18 +20,18 @@ $loggerModulePath = Join-Path $modulesFolder "logger.psm1"
 # URL for the logger module on GitHub
 $loggerModuleURL = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/modules/logger.psm1"
 
-###############################################
+
 # ConfigLoader Module Acquisition & Import Section #
-###############################################
+
 
 # Define the ConfigLoader module file path inside the init\modules folder
 $configLoaderModulePath = Join-Path $modulesFolder "ConfigLoader.psm1"
 # URL for the ConfigLoader module on GitHub
 $configLoaderModuleURL = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/modules/ConfigLoader.psm1"
 
-###############################################
+
 # Determine Mode and Acquire Modules Accordingly #
-###############################################
+
 
 $mode = $null
 if ($args -contains '--online-mode') {
@@ -104,9 +104,9 @@ else {
     exit 1
 }
 
-###############################
+
 # Logging Initialization Code #
-###############################
+
 
 # Get hostname
 $hostName = $env:COMPUTERNAME
@@ -131,9 +131,9 @@ else {
     $hostLogFolder = $null
 }
 
-###############################################
+
 # Configuration File Verification via ConfigLoader #
-###############################################
+
 
 # Use the Get-Config function from ConfigLoader module to load the configuration.
 $config = Get-Config -workingDir $workingDir
@@ -152,9 +152,9 @@ Write-Host "$repo" -ForegroundColor Green
 Write-Host "  token: " -NoNewline
 Write-Host "$token" -ForegroundColor Green
 
-######################################
-# Mode-Specific Operations Begin Here#
-######################################
+
+# Mode-Specific Operations Begin Here #
+
 
 if ($mode -eq "ONLINE") {
     if ($primaryLogFilePath) { Write-Log -message "Running in ONLINE mode." -logFilePath $primaryLogFilePath }

@@ -144,10 +144,10 @@ $owner = $config.owner
 $repo  = $config.repo
 $token = $config.token
 
-Write-Host "Configuration loaded:"
-Write-Host "  owner: $owner"
-Write-Host "  repo : $repo"
-Write-Host "  token: $token"
+Write-Host "Configuration loaded:" -ForegroundColor Green
+Write-Host "  owner: $owner" -ForegroundColor Green
+Write-Host "  repo : $repo" -ForegroundColor Green
+Write-Host "  token: $token" -ForegroundColor Green
 
 ######################################
 # Mode-Specific Operations Begin Here#

@@ -9,32 +9,36 @@ function Get-Config {
 
     # If the configuration file does not exist, alert the user and exit.
     if (-not (Test-Path -Path $configFilePath)) {
-        Write-Host "Configuration file 'main.ini' is required for all functionality." -ForegroundColor Red
-        Write-Host "Please ensure that 'main.ini' exists in the 'configs' folder."
-        Read-Host "Press Enter to exit..."
+        Write-Error "Configuration file 'main.ini' is required and was not found in '$($workingDir)\configs'."
         exit 1
     }
 
-    # Parse the INI file into a hashtable.
+    Write-Verbose "Reading configuration file: $configFilePath"
     $ini = @{}
-    foreach ($line in Get-Content $configFilePath) {
+    $lines = Get-Content $configFilePath
+
+    foreach ($line in $lines) {
         $line = $line.Trim()
         # Skip empty lines and comments (lines starting with ; or #)
-        if ($line -eq "" -or $line.StartsWith(";") -or $line.StartsWith("#")) {
+        if ([string]::IsNullOrEmpty($line) -or $line.StartsWith(";") -or $line.StartsWith("#")) {
             continue
         }
         # Skip section headers (e.g., [Section])
         if ($line.StartsWith("[")) {
             continue
         }
-        # Expect lines in the form key=value (optionally with spaces around '=')
-        $pair = $line -split "=",2
-        if ($pair.Length -eq 2) {
-            $key = $pair[0].Trim()
-            $value = $pair[1].Trim()
+        # Use regex to parse key=value pairs. Accept quotes around value.
+        if ($line -match "^\s*(\S+)\s*=\s*(.*)$") {
+            $key = $matches[1].Trim()
+            $value = $matches[2].Trim().Trim('"')
             $ini[$key] = $value
+            Write-Verbose "Loaded key '$key' with value '$value'"
+        }
+        else {
+            Write-Verbose "Skipping unrecognized line: $line"
         }
     }
+    Write-Verbose "Total keys loaded: $($ini.Count)"
     return $ini
 }
 

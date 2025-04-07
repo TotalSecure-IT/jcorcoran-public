@@ -144,7 +144,7 @@ $owner = $config.owner
 $repo  = $config.repo
 $token = $config.token 
 
-Write-Host "Configuration loaded:"
+Write-Host "Configuration loaded:" -ForegroundColor White
 Write-Host "  owner: " -NoNewline
 Write-Host "$owner" -ForegroundColor Green
 Write-Host "  repo : " -NoNewline

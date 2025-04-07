@@ -142,12 +142,15 @@ $config = Get-Config -workingDir $workingDir
 # (In the future, simply add more keys to main.ini and reference them here.)
 $owner = $config.owner
 $repo  = $config.repo
-$token = $config.token
+$token = $config.token 
 
-Write-Host "Configuration loaded:" -ForegroundColor Green
-Write-Host "  owner: $owner" -ForegroundColor Green
-Write-Host "  repo : $repo" -ForegroundColor Green
-Write-Host "  token: $token" -ForegroundColor Green
+Write-Host "Configuration loaded:"
+Write-Host "  owner: " -NoNewline
+Write-Host "$owner" -ForegroundColor Green
+Write-Host "  repo : " -NoNewline
+Write-Host "$repo" -ForegroundColor Green
+Write-Host "  token: " -NoNewline
+Write-Host "$token" -ForegroundColor Green
 
 ######################################
 # Mode-Specific Operations Begin Here#

@@ -1,43 +1,63 @@
-# Clear the screen immediately upon launch
 Clear-Host
 
-# Set working directory to the parent of the script's folder (assumes main.ps1 is in the "init" folder)
+# Set working directory to the parent of the script's folder
 $workingDir = Split-Path -Parent $PSScriptRoot
 Set-Location $workingDir
 
-# Start robust logging
-$logDir = Join-Path $workingDir "logs"
-# Create a timestamp for the log filename using date and 12hr time format
+$hostName = $env:COMPUTERNAME
+
+# Set logs directory and create a new subfolder for this hostname if it does not exist
+$logsRoot = Join-Path $workingDir "logs"
+$hostLogFolder = Join-Path $logsRoot $hostName
+if (-not (Test-Path -Path $hostLogFolder)) {
+    New-Item -ItemType Directory -Path $hostLogFolder | Out-Null
+}
+
+# Create a timestamp for the primary log filename using date and 12hr time format
 $dateStamp = Get-Date -Format "yyyy-MM-dd"
 $timeStamp = Get-Date -Format "hh-mm-sstt"  # e.g., 08-30-45PM
-$logFileName = "Poly.PKit_${dateStamp}@${timeStamp}.log"
-$logFilePath = Join-Path $logDir $logFileName
+$primaryLogFileName = "Poly.PKit_${dateStamp}@${timeStamp}.log"
+$primaryLogFilePath = Join-Path $hostLogFolder $primaryLogFileName
 
-# Create the primary log file with an initial header entry
-"Starting Poly.PKit log - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Out-File -FilePath $logFilePath
+# Create the primary log file with header
+"Starting Poly.PKit log - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Out-File -FilePath $primaryLogFilePath
 
-# Define a robust logging function for use throughout the script and by future modules
+# Logging function for use throughout the script and future modules
 function Write-Log {
     param (
         [string]$message
     )
     $logTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff"
     $logEntry = "[$logTimestamp] $message"
-    Add-Content -Path $logFilePath -Value $logEntry
+    Add-Content -Path $primaryLogFilePath -Value $logEntry
 }
 
-Write-Log "Log file created: $logFileName"
+Write-Log "Primary log file created: $primaryLogFileName"
 
-# Gather advanced system details and save them under logs as {hostname}.log
-$hostName = $env:COMPUTERNAME
-$systemLogFile = Join-Path $logDir "$hostName.log"
-"System Details for $hostName - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Out-File -FilePath $systemLogFile
-"--------------------------------------------------------" | Out-File -Append -FilePath $systemLogFile
-$systemDetails = Get-ComputerInfo | Out-String
-$systemDetails | Out-File -Append -FilePath $systemLogFile
-Write-Log "System details logged to $systemLogFile"
+# Create system log file ($hostName.log) in the hostname folder, but only if it does not already exist.
+$systemLogFilePath = Join-Path $hostLogFolder "$hostName.log"
+if (-not (Test-Path -Path $systemLogFilePath)) {
+    "System Details for $hostName - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Out-File -FilePath $systemLogFilePath
+    "--------------------------------------------------------" | Out-File -Append -FilePath $systemLogFilePath
+    
+    # Append advanced system details
+    $systemDetails = Get-ComputerInfo | Out-String
+    $systemDetails | Out-File -Append -FilePath $systemLogFilePath
 
-# Check for mode flags passed as arguments and act accordingly
+    # Append network information
+    "--------------------------------------------------------" | Out-File -Append -FilePath $systemLogFilePath
+    "Network Information:" | Out-File -Append -FilePath $systemLogFilePath
+    "--------------------------------------------------------" | Out-File -Append -FilePath $systemLogFilePath
+    $networkInfo = ipconfig /all | Out-String
+    $networkInfo | Out-File -Append -FilePath $systemLogFilePath
+
+    Write-Log "System details and network information logged to $systemLogFilePath"
+}
+else {
+    Write-Log "System log file already exists at $systemLogFilePath. Skipping system details logging."
+}
+
+# Check for mode flags passed as arguments
 if ($args -contains '--online-mode') {
     Write-Host "Mode:" -NoNewline
     Write-Host " ONLINE" -ForegroundColor Green

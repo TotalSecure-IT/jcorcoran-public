@@ -1,9 +1,12 @@
-# Clear the screen immediately upon launch
 Clear-Host
 
-# Set working directory to the parent of the script's folder (assumes main.ps1 is in the "init" folder)
+# Set working directory to the parent of the script's folder
 $workingDir = Split-Path -Parent $PSScriptRoot
 Set-Location $workingDir
+
+##############################################
+# Logger Module Acquisition & Import Section #
+##############################################
 
 # Determine the init folder (where main.ps1 resides) and the modules folder inside it
 $initDir = $PSScriptRoot
@@ -41,9 +44,9 @@ elseif ($args -contains '--cached-mode') {
     # In cached mode, check if the logger module exists in the modules folder.
     if (-not (Test-Path -Path $loggerModulePath)) {
         Write-Host "Logger module not found in init\modules." -ForegroundColor Yellow
-        Write-Host "Logging is disabled in cached mode. Please run the script in online mode at least once or manually obtain the logger module from GitHub."
-        # Optionally, you can pause or exit here.
-        # exit 1
+        Write-Host "Come on, dawg. Do you know what this tool is? Run the script in online mode at least once."
+        Read-Host "Press Enter to exit..."
+        exit 1
     }
 }
 else {
@@ -51,13 +54,17 @@ else {
     $mode = "NONE"
 }
 
-# If logger module exists, import it (if in online mode it was just downloaded; if in cached mode it exists)
+# If logger module exists, import it
 if (Test-Path -Path $loggerModulePath) {
     Import-Module $loggerModulePath -Force
 }
 else {
     Write-Host "Logger module not available. Continuing without logging functionality." -ForegroundColor Yellow
 }
+
+###############################
+# Logging Initialization Code #
+###############################
 
 # Get hostname
 $hostName = $env:COMPUTERNAME
@@ -77,13 +84,44 @@ if (Get-Module -Name logger) {
     Write-SystemLog -hostName $hostName -hostLogFolder $hostLogFolder -primaryLogFilePath $primaryLogFilePath
 }
 else {
-    # If the logger module is not available, set dummy variables for later code (or handle as desired)
     Write-Host "Logger module not loaded. Skipping logging initialization." -ForegroundColor Yellow
     $primaryLogFilePath = $null
     $hostLogFolder = $null
 }
 
-# Continue with mode-specific operations
+###############################################
+# Configuration File Verification Module Call #
+###############################################
+
+# Define the ConfigLoader module path (located in the same modules folder inside init)
+$configLoaderModulePath = Join-Path $modulesFolder "ConfigLoader.psm1"
+if (Test-Path -Path $configLoaderModulePath) {
+    Import-Module $configLoaderModulePath -Force
+} else {
+    Write-Host "Configuration Loader module not found at $configLoaderModulePath" -ForegroundColor Yellow
+    Read-Host "Press Enter to exit..."
+    exit 1
+}
+
+# Use the Get-Config function to load the configuration into a hashtable.
+$config = Get-Config -workingDir $workingDir
+
+# Retrieve security-sensitive variables from the configuration.
+# (To expand in the future, add more keys to main.ini and reference them here.)
+
+$owner = $config.owner
+$repo  = $config.repo
+$token = $config.token
+
+Write-Host "Configuration loaded:"
+Write-Host "  owner: $owner"
+Write-Host "  repo : $repo"
+Write-Host "  token: $token"
+
+######################################
+# Mode-Specific Operations Begin Here#
+######################################
+
 if ($mode -eq "ONLINE") {
     if ($primaryLogFilePath) { Write-Log -message "Running in ONLINE mode." -logFilePath $primaryLogFilePath }
     # In ONLINE mode, verbosely check/create the folder structure.
@@ -111,7 +149,7 @@ if ($mode -eq "ONLINE") {
     }
 
     # Create "modules" folder in the working directory if it does not exist.
-    # (Note: The modules folder for logger is inside init folder, so these are separate.)
+    # (Note: The modules folder for logger and config loader is inside the init folder, so these are separate.)
     $workingModulesPath = Join-Path $workingDir "modules"
     if (-Not (Test-Path -Path $workingModulesPath)) {
         Write-Host "Creating folder 'modules' in working directory..."
@@ -126,3 +164,4 @@ if ($mode -eq "ONLINE") {
 elseif ($mode -eq "CACHED") {
     if ($primaryLogFilePath) { Write-Log -message "Running in CACHED mode. Folder creation skipped." -logFilePath $primaryLogFilePath }
 }
+

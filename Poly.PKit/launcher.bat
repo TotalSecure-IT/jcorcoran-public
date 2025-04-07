@@ -63,7 +63,8 @@ if /i "%MODE%"=="CACHED" (
     echo Downloading main.ps1 from GitHub...
     powershell -ExecutionPolicy Bypass -NoProfile -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/main.ps1' -OutFile '%~dp0init\main.ps1'"
     echo Launching main.ps1 in ONLINE mode...
-    pwsh.exe -ExecutionPolicy Bypass -NoProfile -File "%~dp0init\main.ps1" --online-mode
+    "C:\Program Files\PowerShell\7\pwsh.exe" -ExecutionPolicy Bypass -NoProfile -File "%~dp0init\main.ps1" --online-mode
 )
 echo Exiting script.
+pause
 exit /b 0

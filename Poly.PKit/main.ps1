@@ -1,8 +1,10 @@
 # Check for mode flags passed as arguments
 if ($args -contains '--online-mode') {
-    Write-Host "Running in SUPER FUCKIN AWESOME ONLINE mode"
+    Write-Host "Mode:" -NoNewline
+    Write-Host " ONLINE" -ForegroundColor Green
 } elseif ($args -contains '--cached-mode') {
-    Write-Host "Running in CACHED mode"
+    Write-Host "Mode:" -NoNewline
+    Write-Host " CACHED" -ForegroundColor Red
 } else {
     Write-Host "No mode specified."
 }

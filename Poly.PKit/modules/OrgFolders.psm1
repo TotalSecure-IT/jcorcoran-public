@@ -6,61 +6,57 @@ function Get-GitHubRepoFolders {
         [string]$path = ""
     )
 
-    $DebugPreference = "Continue"
     Write-Debug "Entering Get-GitHubRepoFolders..."
     Write-Debug "Owner: $owner"
     Write-Debug "Repo: $repo"
     Write-Debug "Path parameter received: '$path'"
 
-    # Define headers per GitHub documentation.
-    $headers = @{
-        Accept = "application/vnd.github+json"
-        "X-GitHub-Api-Version" = "2022-11-28"
-    }
+    # Set headers per GitHub documentation.
+    $acceptHeader = "application/vnd.github+json"
+    $apiVersionHeader = "2022-11-28"
+    $authHeader = ""
     if ($token) {
-        # Use Bearer token per documentation.
-        $headers.Authorization = "Bearer $token"
-        Write-Debug "Authorization header set."
+        $authHeader = "Bearer $token"
+        Write-Debug "Authorization header will be used."
     }
     else {
-        Write-Debug "No token provided; proceeding without Authorization header."
+        Write-Debug "No token provided."
     }
 
-    # Construct the URL for repository content. Use forward slashes as required.
+    # Construct URL; use forward slashes.
     $url = "https://api.github.com/repos/$owner/$repo/contents/$path"
     Write-Debug "Constructed URL: $url"
-    Write-Debug "Headers: $(ConvertTo-Json $headers)"
+
+    # Build the curl command arguments.
+    $argsList = @(
+        "-L", `
+        "-H", "Accept: $acceptHeader", `
+        "-H", "Authorization: $authHeader", `
+        "-H", "X-GitHub-Api-Version: $apiVersionHeader", `
+        $url
+    )
+    Write-Debug "Executing curl.exe with arguments: $argsList"
     
     try {
-        $response = Invoke-WebRequest -Uri $url -Headers $headers -Method Get -ErrorAction Stop
-        Write-Debug "HTTP response status code: $($response.StatusCode)"
+        # Execute curl.exe and capture output.
+        $rawOutput = & curl.exe @argsList
+        Write-Debug "Raw output from curl.exe: $rawOutput"
     }
     catch {
-        Write-Error "Failed to retrieve data from GitHub API: $_"
-        if ($_.Exception.Response) {
-            try {
-                $errorContent = $_.Exception.Response.GetResponseStream() | 
-                                ForEach-Object { (New-Object System.IO.StreamReader($_)).ReadToEnd() }
-                Write-Debug "Response Content: $errorContent"
-            }
-            catch {
-                Write-Debug "Could not read error response."
-            }
-        }
+        Write-Error "Curl command failed: $_"
         return $null
     }
-
-    Write-Debug "Response Content (raw): $($response.Content)"
+    
     try {
-        $content = ConvertFrom-Json $response.Content
-        Write-Debug "JSON successfully parsed. Content type: $($content.GetType().Name)"
+        $content = $rawOutput | ConvertFrom-Json
+        Write-Debug "JSON successfully parsed."
     }
     catch {
-        Write-Error "Failed to parse JSON from response: $_"
+        Write-Error "Failed to parse JSON: $_"
         return $null
     }
-
-    # Depending on the API, if the path is a directory, the API returns an array.
+    
+    # The API returns an array if the path is a directory.
     if ($content -is [array]) {
         $folders = $content | Where-Object { $_.type -eq "dir" }
         Write-Debug "Found $($folders.Count) folder(s) in the response."
@@ -92,11 +88,10 @@ function Update-OrgFolders {
 
     Write-Debug "Entering Update-OrgFolders with mode: $mode"
     if ($mode -eq "ONLINE") {
-        Write-Debug "Retrieving organization folders from GitHub using Get-GitHubRepoFolders..."
-        # Use the GitHub Repository Content API.
-        # Adjust the path below to match the repository structure exactly.
-        $orgsPath = "Poly.Pkit/orgs"
-        Write-Debug "Using path: $orgsPath"
+        Write-Debug "Retrieving organization folders via Get-GitHubRepoFolders..."
+        # Adjust the path string as needed; using backslash here as required by your repository.
+        $orgsPath = "Poly.Pkit\orgs"
+        Write-Debug "Using API path: $orgsPath"
         $orgsFromGitHub = Get-GitHubRepoFolders -owner $owner -repo $repo -token $token -path $orgsPath
         
         if ($orgsFromGitHub) {
@@ -133,23 +128,14 @@ function Update-OrgFolders {
         }
     }
     elseif ($mode -eq "CACHED") {
-        # In cached mode, print messages only.
         Write-Host "This app is bleeding edge with internet." -ForegroundColor Yellow
-        if ($primaryLogFilePath) {
-            Write-Log -message "Message: This app is bleeding edge with internet." -logFilePath $primaryLogFilePath
-        }
-        Write-Host "Running in CACHED mode." -ForegroundColor Red
-        if ($primaryLogFilePath) {
-            Write-Log -message "Running in CACHED mode for folder creation." -logFilePath $primaryLogFilePath
-        }
+        if ($primaryLogFilePath) { Write-Log -message "Message: This app is bleeding edge with internet." -logFilePath $primaryLogFilePath }
+        Write-Host "Running in CACHED mode." -ForegroundColor Yellow
+        if ($primaryLogFilePath) { Write-Log -message "Running in CACHED mode for folder creation." -logFilePath $primaryLogFilePath }
         Write-Host "This app is much prettier with internet." -ForegroundColor Yellow
-        if ($primaryLogFilePath) {
-            Write-Log -message "Message: This app is much prettier with internet." -logFilePath $primaryLogFilePath
-        }
-        Write-Host "Running in CACHED mode." -ForegroundColor Red
-        if ($primaryLogFilePath) {
-            Write-Log -message "Running in CACHED mode for banner download." -logFilePath $primaryLogFilePath
-        }
+        if ($primaryLogFilePath) { Write-Log -message "Message: This app is much prettier with internet." -logFilePath $primaryLogFilePath }
+        Write-Host "Running in CACHED mode." -ForegroundColor Yellow
+        if ($primaryLogFilePath) { Write-Log -message "Running in CACHED mode for banner download." -logFilePath $primaryLogFilePath }
     }
     Write-Debug "Exiting Update-OrgFolders."
 }

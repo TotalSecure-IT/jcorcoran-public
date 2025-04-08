@@ -134,7 +134,7 @@ Write-Host "  token: " -NoNewline
 Write-Host "$token" -ForegroundColor Green
 
 #------------------------------------------------------------------
-# Basic Folder Creation (configs, Orgs, and modules in working directory)
+# Basic Folder Creation (configs, orgs, and modules in working directory)
 #------------------------------------------------------------------
 # Verify 'configs' folder exists.
 $configsPath = Join-Path $workingDir "configs"
@@ -147,16 +147,16 @@ else {
     if ($primaryLogFilePath) { Write-Log -message "'configs' folder exists." -logFilePath $primaryLogFilePath }
 }
 
-# Create 'Orgs' folder if needed.
-$orgsPath = Join-Path $workingDir "Orgs"
+# Create 'orgs' folder if needed.
+$orgsPath = Join-Path $workingDir "orgs"
 if (-Not (Test-Path -Path $orgsPath)) {
-    Write-Host "Creating folder 'Orgs'..."
-    if ($primaryLogFilePath) { Write-Log -message "Creating folder 'Orgs'." -logFilePath $primaryLogFilePath }
+    Write-Host "Creating folder 'orgs'..."
+    if ($primaryLogFilePath) { Write-Log -message "Creating folder 'orgs'." -logFilePath $primaryLogFilePath }
     New-Item -ItemType Directory -Path $orgsPath | Out-Null
 }
 else {
-    Write-Host "Folder 'Orgs' already exists."
-    if ($primaryLogFilePath) { Write-Log -message "Folder 'Orgs' already exists." -logFilePath $primaryLogFilePath }
+    Write-Host "Folder 'orgs' already exists."
+    if ($primaryLogFilePath) { Write-Log -message "Folder 'orgs' already exists." -logFilePath $primaryLogFilePath }
 }
         
 # Download banner files and save them under workingDir\configs.

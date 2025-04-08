@@ -53,19 +53,19 @@ function Update-OrgFolders {
                 Write-Log -message "Processing organization folders obtained from GitHub." -logFilePath $primaryLogFilePath
             }
             foreach ($org in $orgsFromGitHub) {
-                # Define the target folder under workingDir\Orgs.
-                $localOrgPath = Join-Path -Path (Join-Path $workingDir "Orgs") -ChildPath $org.name
+                # Define the target folder under workingDir\orgs.
+                $localOrgPath = Join-Path -Path (Join-Path $workingDir "orgs") -ChildPath $org.name
                 if (-not (Test-Path -Path $localOrgPath)) {
-                    Write-Host "Creating folder under Orgs: $($org.name)" -ForegroundColor Green
+                    Write-Host "Creating folder under orgs: $($org.name)" -ForegroundColor Green
                     if ($primaryLogFilePath) {
-                        Write-Log -message "Creating folder under Orgs: $($org.name)" -logFilePath $primaryLogFilePath
+                        Write-Log -message "Creating folder under orgs: $($org.name)" -logFilePath $primaryLogFilePath
                     }
                     New-Item -ItemType Directory -Path $localOrgPath | Out-Null
                 }
                 else {
-                    Write-Host "Folder under Orgs already exists: $($org.name)" -ForegroundColor Yellow
+                    Write-Host "Folder under orgs already exists: $($org.name)" -ForegroundColor Yellow
                     if ($primaryLogFilePath) {
-                        Write-Log -message "Folder under Orgs already exists: $($org.name)" -logFilePath $primaryLogFilePath
+                        Write-Log -message "Folder under orgs already exists: $($org.name)" -logFilePath $primaryLogFilePath
                     }
                 }
             }

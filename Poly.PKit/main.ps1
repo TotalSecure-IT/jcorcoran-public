@@ -5,7 +5,7 @@
 #>
 
 Clear-Host
-$DebugPreference = "Continue"
+#$DebugPreference = "Continue"
 
 #------------------------------------------------------------------
 # Set Working Directories

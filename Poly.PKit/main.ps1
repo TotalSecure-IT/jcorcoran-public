@@ -191,18 +191,22 @@ catch {
     }
 }
 
-
 #------------------------------------------------------------------
 # Additional Functionality: Organization Folders and Banner Download
 #------------------------------------------------------------------
-if (Test-Path -Path $orgBannerModulePath) {
-    Import-Module $orgBannerModulePath -Force
+$orgFoldersModulePath = Join-Path $modulesFolder "OrgFolders.psm1"
+if (Test-Path -Path $orgFoldersModulePath) {
+    Import-Module $orgFoldersModulePath -Force
     Write-Host "OrgFolders module imported." -ForegroundColor Cyan
-    if ($primaryLogFilePath) { Write-Log -message "OrgFolders module imported." -logFilePath $primaryLogFilePath }
+    if ($primaryLogFilePath) { 
+        Write-Log -message "OrgFolders module imported." -logFilePath $primaryLogFilePath 
+    }
     
     Update-OrgFolders -workingDir $workingDir -mode $mode -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath
 }
 else {
     Write-Host "OrgFolders module not found. Skipping additional organization and banner processing." -ForegroundColor Yellow
-    if ($primaryLogFilePath) { Write-Log -message "OrgFolders module not found. Skipping additional org and banner processing." -logFilePath $primaryLogFilePath }
+    if ($primaryLogFilePath) { 
+        Write-Log -message "OrgFolders module not found. Skipping additional organization and banner processing." -logFilePath $primaryLogFilePath 
+    }
 }

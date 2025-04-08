@@ -46,9 +46,17 @@ the script should make and keep one current hashfile locally in the relevant com
 
 immediately after downloading files which are newer than the ones stored locally, the script should notify that a new version has become available
 
-PolyPocket
-├── config (motd files, global settings)
-├── companies
+{workingdirectory}:
+├── configs           (should already exist; contains secret offline files)
+├── Orgs              (created if missing)
+├── modules           (created if missing)
+├── logs              (created by launcher.bat)
+├── init              (created by launcher.bat)
+│   └── main.ps1
+└── launcher.bat
+
+├── configs
+├── Orgs
 │   ├── CompanyA
 │   │   ├── scripts
 │   │   ├── assets
@@ -56,5 +64,5 @@ PolyPocket
 │   └── CompanyB
 │       └── ...
 ├── modules (central functions, UI)
-├── logs (execution logs, debugging info)
-└── init
+├── logs (already made by launcher.bat)
+└── init (already made by launcher.bat)

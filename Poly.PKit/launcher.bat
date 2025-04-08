@@ -41,7 +41,9 @@ if /i "%MODE%"=="ONLINE" (
         winget upgrade --id Microsoft.Winget --silent --accept-source-agreements --accept-package-agreements
     )
     echo Installing cURL...
-    winget install cURL.cURL --silent --accept-source-agreements --accept-package-agreements 
+    winget install cURL.cURL --silent --accept-source-agreements --accept-package-agreements
+    echo Installing Git...
+    winget install Git.Git --silent --accept-source-agreements --accept-package-agreements 
     echo Checking for PowerShell 7 (pwsh.exe)...
     where pwsh.exe >nul 2>&1
     if errorlevel 1 (

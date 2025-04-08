@@ -6,6 +6,7 @@ function Get-GitHubRepoFolders {
         [string]$path = ""
     )
 
+    $DebugPreference = "Continue"
     Write-Debug "Entering Get-GitHubRepoFolders..."
     Write-Debug "Owner: $owner"
     Write-Debug "Repo: $repo"

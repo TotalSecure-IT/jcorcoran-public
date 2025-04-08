@@ -46,7 +46,7 @@ function Update-OrgFolders {
 
     if ($mode -eq "ONLINE") {
         # Use Get-GitHubRepoFolders to obtain organization folders from GitHub.
-        $orgsFromGitHub = Get-GitHubRepoFolders -owner $owner -repo $repo -token $token -path "Poly.PKit/orgs"
+        $orgsFromGitHub = Get-GitHubRepoFolders -owner $owner -repo $repo -token $token -path "Poly.PKit\orgs"
         if ($orgsFromGitHub) {
             Write-Host "Processing organization folders obtained from GitHub:" -ForegroundColor Cyan
             if ($primaryLogFilePath) {

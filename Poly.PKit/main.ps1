@@ -200,7 +200,7 @@ if (Test-Path -Path $orgBannerModulePath) {
     Write-Host "OrgFolders module imported." -ForegroundColor Cyan
     if ($primaryLogFilePath) { Write-Log -message "OrgFolders module imported." -logFilePath $primaryLogFilePath }
     
-    Update-OrgFolderss -workingDir $workingDir -mode $mode -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath
+    Update-OrgFolders -workingDir $workingDir -mode $mode -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath
 }
 else {
     Write-Host "OrgFolders module not found. Skipping additional organization and banner processing." -ForegroundColor Yellow

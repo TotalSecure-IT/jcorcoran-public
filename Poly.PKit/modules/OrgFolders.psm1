@@ -1,69 +1,64 @@
-function Get-GitHubFolderTree {
-    param(
+function Get-GitHubRepoFolders {
+    param (
         [string]$owner,
         [string]$repo,
         [string]$token,
-        [string]$ref = "HEAD",     # use HEAD by default
-        [string]$targetPath = "Poly.PKit/orgs"  # target folder in repo
+        [string]$path = ""
     )
 
-    Write-Debug "Entering Get-GitHubFolderTree..."
+    Write-Debug "Entering Get-GitHubRepoFolders..."
     Write-Debug "Owner: $owner"
     Write-Debug "Repo: $repo"
-    Write-Debug "Ref: $ref"
-    Write-Debug "TargetPath: $targetPath"
+    Write-Debug "Original path parameter: '$path'"
 
-    $acceptHeader = "application/vnd.github+json"
-    $apiVersionHeader = "2022-11-28"
-    $authHeader = ""
+    # Use your original header format: "token <token>"
+    $headers = @{}
     if ($token) {
-        $authHeader = "Bearer $token"
-        Write-Debug "Authorization header will be set."
+        $headers.Authorization = "token $token"
+        Write-Debug "Authorization header set to: token ****"
     }
     else {
         Write-Debug "No token provided."
     }
 
-    # Construct URL using the Git Trees API with recursive=1
-    $url = "https://api.github.com/repos/$owner/$repo/git/trees/$ref?recursive=1"
-    Write-Debug "Constructed Git Tree URL: $url"
+    # Convert any backslashes in $path to forward slashes,
+    # because GitHub expects URL paths with forward slashes.
+    $pathClean = $path -replace "\\", "/"
+    Write-Debug "Cleaned path: '$pathClean'"
 
-    # Build curl arguments (using native curl.exe)
-    $argsList = @(
-        "-L",
-        "-H", "Accept: $acceptHeader",
-        "-H", "Authorization: $authHeader",
-        "-H", "X-GitHub-Api-Version: $apiVersionHeader",
-        $url
-    )
-    Write-Debug "Executing curl.exe with arguments: $argsList"
+    $url = "https://api.github.com/repos/$owner/$repo/contents/$pathClean"
+    Write-Debug "Constructed URL: $url"
+    Write-Debug "Headers: $(ConvertTo-Json $headers)"
+
     try {
-        $rawOutput = & curl.exe @argsList
-        Write-Debug "Raw output from curl.exe: $rawOutput"
+        $response = Invoke-WebRequest -Uri $url -Headers $headers -Method Get -ErrorAction Stop
+        Write-Debug "HTTP response status code: $($response.StatusCode)"
     }
     catch {
-        Write-Error "curl.exe command failed: $_"
+        Write-Error "Failed to retrieve data from GitHub API: $_"
+        return $null
+    }
+
+    # Show the first 200 characters of the returned content for debugging.
+    Write-Debug "Response content (first 200 chars): $($response.Content.Substring(0, [Math]::Min(200, $response.Content.Length)))"
+    try {
+        $content = ConvertFrom-Json $response.Content
+        Write-Debug "JSON successfully parsed; received $(if($content -is [array]) { $content.Count } else { 'an object' })."
+    }
+    catch {
+        Write-Error "Failed to parse JSON from the response: $_"
         return $null
     }
     
-    try {
-        $treeData = $rawOutput | ConvertFrom-Json
-        Write-Debug "JSON parsed successfully. Total items in tree: $($treeData.tree.Count)"
-    }
-    catch {
-        Write-Error "Failed to parse JSON: $_"
-        return $null
-    }
-    
-    # Filter for folder items: those with type "tree" whose path starts with targetPath.
-    $folders = $treeData.tree | Where-Object { $_.type -eq "tree" -and $_.path -like "$targetPath*" }
-    Write-Debug "Found $($folders.Count) folder(s) under path '$targetPath'."
+    # The API should return an array of objects (one per item in the directory).
+    $folders = $content | Where-Object { $_.type -eq "dir" }
+    Write-Debug "Found $($folders.Count) folder(s) in the response."
     return $folders
 }
 
 function Update-OrgFolders {
     [CmdletBinding()]
-    param(
+    param (
         [Parameter(Mandatory = $true)]
         [string]$workingDir,
         [Parameter(Mandatory = $true)]
@@ -81,55 +76,56 @@ function Update-OrgFolders {
 
     Write-Debug "Entering Update-OrgFolders with mode: $mode"
     if ($mode -eq "ONLINE") {
-        # Retrieve the full folder tree using the Git Trees API.
-        $targetPath = "Poly.PKit/orgs"
-        Write-Debug "Retrieving folder tree for target: $targetPath"
-        $folders = Get-GitHubFolderTree -owner $owner -repo $repo -token $token -targetPath $targetPath
-        if ($folders) {
-            Write-Host "Processing folder tree from GitHub:" -ForegroundColor Cyan
+        # Use the working path exactly as in your original script.
+        $apiPath = "Poly.PKit\Orgs"
+        Write-Debug "Using API path parameter: '$apiPath'"
+        $orgsFromGitHub = Get-GitHubRepoFolders -owner $owner -repo $repo -token $token -path $apiPath
+        
+        if ($orgsFromGitHub) {
+            Write-Host "Processing organization folders obtained from GitHub:" -ForegroundColor Cyan
             if ($primaryLogFilePath) {
-                Write-Log -message "Processing folder tree from GitHub." -logFilePath $primaryLogFilePath
+                Write-Log -message "Processing organization folders obtained from GitHub." -logFilePath $primaryLogFilePath
             }
-            foreach ($folder in $folders) {
-                Write-Debug "Found folder: $($folder.path)"
-                # Remove the leading target path (e.g., "Poly.PKit/orgs") to obtain the relative folder structure.
-                $relativePath = $folder.path.Substring($targetPath.Length).TrimStart("/", "\")
-                # Build the corresponding local folder path under workingDir\orgs.
-                $localFolderPath = Join-Path -Path (Join-Path $workingDir "orgs") $relativePath
-                Write-Debug "Local folder path will be: $localFolderPath"
-                if (-not (Test-Path -Path $localFolderPath)) {
-                    Write-Host "Creating folder: $localFolderPath" -ForegroundColor Green
+            foreach ($org in $orgsFromGitHub) {
+                Write-Debug "Processing folder: $($org.name)"
+                # Define the target folder under workingDir\Orgs (replicating the structure)
+                $localOrgPath = Join-Path -Path (Join-Path $workingDir "Orgs") -ChildPath $org.name
+                Write-Debug "Local folder path: $localOrgPath"
+                if (-not (Test-Path -Path $localOrgPath)) {
+                    Write-Host "Creating folder under Orgs: $($org.name)" -ForegroundColor Green
                     if ($primaryLogFilePath) {
-                        Write-Log -message "Creating folder: $localFolderPath" -logFilePath $primaryLogFilePath
+                        Write-Log -message "Creating folder under Orgs: $($org.name)" -logFilePath $primaryLogFilePath
                     }
-                    New-Item -ItemType Directory -Path $localFolderPath | Out-Null
+                    New-Item -ItemType Directory -Path $localOrgPath | Out-Null
+                    Write-Debug "Folder created: $localOrgPath"
                 }
                 else {
-                    Write-Host "Folder already exists: $localFolderPath" -ForegroundColor Yellow
+                    Write-Host "Folder under Orgs already exists: $($org.name)" -ForegroundColor Yellow
                     if ($primaryLogFilePath) {
-                        Write-Log -message "Folder already exists: $localFolderPath" -logFilePath $primaryLogFilePath
+                        Write-Log -message "Folder under Orgs already exists: $($org.name)" -logFilePath $primaryLogFilePath
                     }
                 }
             }
         }
         else {
-            Write-Host "No folder data retrieved from GitHub." -ForegroundColor Yellow
+            Write-Host "No organization folders retrieved from GitHub." -ForegroundColor Yellow
             if ($primaryLogFilePath) {
-                Write-Log -message "No folder data retrieved from GitHub." -logFilePath $primaryLogFilePath
+                Write-Log -message "No organization folders retrieved from GitHub." -logFilePath $primaryLogFilePath
             }
         }
     }
     elseif ($mode -eq "CACHED") {
+        # In cached mode, simply print messages.
         Write-Host "This app is bleeding edge with internet." -ForegroundColor Yellow
-        if ($primaryLogFilePath) { Write-Log -message "Message: This app is bleeding edge with internet." -logFilePath $primaryLogFilePath }
+        if ($primaryLogFilePath) {
+            Write-Log -message "Message: This app is bleeding edge with internet." -logFilePath $primaryLogFilePath
+        }
         Write-Host "Running in CACHED mode." -ForegroundColor Yellow
-        if ($primaryLogFilePath) { Write-Log -message "Running in CACHED mode for folder creation." -logFilePath $primaryLogFilePath }
-        Write-Host "This app is much prettier with internet." -ForegroundColor Yellow
-        if ($primaryLogFilePath) { Write-Log -message "Message: This app is much prettier with internet." -logFilePath $primaryLogFilePath }
-        Write-Host "Running in CACHED mode." -ForegroundColor Yellow
-        if ($primaryLogFilePath) { Write-Log -message "Running in CACHED mode for banner download." -logFilePath $primaryLogFilePath }
+        if ($primaryLogFilePath) {
+            Write-Log -message "Running in CACHED mode for folder creation." -logFilePath $primaryLogFilePath
+        }
     }
     Write-Debug "Exiting Update-OrgFolders."
 }
 
-Export-ModuleMember -Function Get-GitHubFolderTree, Update-OrgFolders
+Export-ModuleMember -Function Get-GitHubRepoFolders, Update-OrgFolders

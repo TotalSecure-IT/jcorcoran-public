@@ -18,7 +18,7 @@ function Update-OrgFoldersAndBanners {
 
     if ($mode -eq "ONLINE") {
         # Import the list-orgs module if available.
-        $listOrgsModulePath = Join-Path $workingDir "modules\list-orgs.psm1"
+        $listOrgsModulePath = Join-Path $workingDir "init\modules\list-orgs.psm1"
         if (Test-Path -Path $listOrgsModulePath) {
             Import-Module $listOrgsModulePath -Force
             Write-Host "list-orgs module imported." -ForegroundColor Cyan

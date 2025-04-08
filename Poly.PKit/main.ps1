@@ -159,18 +159,6 @@ else {
     if ($primaryLogFilePath) { Write-Log -message "Folder 'Orgs' already exists." -logFilePath $primaryLogFilePath }
 }
 
-# Create 'modules' folder in the working directory if needed.
-$workingModulesPath = Join-Path $workingDir "modules"
-if (-Not (Test-Path -Path $workingModulesPath)) {
-    Write-Host "Creating folder 'modules' in working directory..."
-    if ($primaryLogFilePath) { Write-Log -message "Creating folder 'modules' in working directory." -logFilePath $primaryLogFilePath }
-    New-Item -ItemType Directory -Path $workingModulesPath | Out-Null
-}
-else {
-    Write-Host "Folder 'modules' in working directory already exists."
-    if ($primaryLogFilePath) { Write-Log -message "Folder 'modules' in working directory already exists." -logFilePath $primaryLogFilePath }
-}
-
 #------------------------------------------------------------------
 # Additional Functionality: Organization Folders and Banner Download
 #------------------------------------------------------------------

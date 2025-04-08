@@ -96,8 +96,8 @@ else {
     exit 1
 }
 
-# OrgFoldersAndBanner Module (optional; used later)
-$orgBannerModulePath = Join-Path $modulesFolder "OrgFoldersAndBanner.psm1"
+# OrgFolders Module (optional; used later)
+$orgBannerModulePath = Join-Path $modulesFolder "OrgFolders.psm1"
 # (We'll check for it later when calling its functionality)
 
 #------------------------------------------------------------------
@@ -158,18 +158,51 @@ else {
     Write-Host "Folder 'Orgs' already exists."
     if ($primaryLogFilePath) { Write-Log -message "Folder 'Orgs' already exists." -logFilePath $primaryLogFilePath }
 }
+        
+# Download banner files and save them under workingDir\configs.
+$configsPath = Join-Path $workingDir "configs"
+$mainbannerURL = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/configs/mainbanner.txt"
+$motdURL = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/configs/motd.txt"
+try {
+    Invoke-WebRequest -Uri $mainbannerURL -OutFile (Join-Path $configsPath "mainbanner.txt") -UseBasicParsing
+    Write-Host "Downloaded mainbanner.txt from GitHub." -ForegroundColor Cyan
+    if ($primaryLogFilePath) {
+        Write-Log -message "Downloaded mainbanner.txt from GitHub." -logFilePath $primaryLogFilePath
+    }
+}
+catch {
+    Write-Host "Failed to download mainbanner.txt from GitHub." -ForegroundColor Red
+    if ($primaryLogFilePath) {
+        Write-Log -message "Failed to download mainbanner.txt from GitHub." -logFilePath $primaryLogFilePath
+    }
+}
+
+try {
+    Invoke-WebRequest -Uri $motdURL -OutFile (Join-Path $configsPath "motd.txt") -UseBasicParsing
+    Write-Host "Downloaded motd.txt from GitHub." -ForegroundColor Cyan
+    if ($primaryLogFilePath) {
+        Write-Log -message "Downloaded motd.txt from GitHub." -logFilePath $primaryLogFilePath
+    }
+}
+catch {
+    Write-Host "Failed to download motd.txt from GitHub." -ForegroundColor Red
+    if ($primaryLogFilePath) {
+        Write-Log -message "Failed to download motd.txt from GitHub." -logFilePath $primaryLogFilePath
+    }
+}
+
 
 #------------------------------------------------------------------
 # Additional Functionality: Organization Folders and Banner Download
 #------------------------------------------------------------------
 if (Test-Path -Path $orgBannerModulePath) {
     Import-Module $orgBannerModulePath -Force
-    Write-Host "OrgFoldersAndBanner module imported." -ForegroundColor Cyan
-    if ($primaryLogFilePath) { Write-Log -message "OrgFoldersAndBanner module imported." -logFilePath $primaryLogFilePath }
+    Write-Host "OrgFolders module imported." -ForegroundColor Cyan
+    if ($primaryLogFilePath) { Write-Log -message "OrgFolders module imported." -logFilePath $primaryLogFilePath }
     
-    Update-OrgFoldersAndBanners -workingDir $workingDir -mode $mode -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath
+    Update-OrgFolderss -workingDir $workingDir -mode $mode -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath
 }
 else {
-    Write-Host "OrgFoldersAndBanner module not found. Skipping additional organization and banner processing." -ForegroundColor Yellow
-    if ($primaryLogFilePath) { Write-Log -message "OrgFoldersAndBanner module not found. Skipping additional org and banner processing." -logFilePath $primaryLogFilePath }
+    Write-Host "OrgFolders module not found. Skipping additional organization and banner processing." -ForegroundColor Yellow
+    if ($primaryLogFilePath) { Write-Log -message "OrgFolders module not found. Skipping additional org and banner processing." -logFilePath $primaryLogFilePath }
 }

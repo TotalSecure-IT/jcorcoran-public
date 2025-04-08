@@ -38,7 +38,6 @@ foreach ($folder in $folders) {
 
 # List subfolders in a specific folder (using forward slashes in the path)
 $subfolders = Get-GitHubRepoFolders -owner $owner -repo $repo -token $token -path "Poly.PKit/orgs"
-Write-Host "Subfolders in Poly.PKit/orgs:"
 foreach ($subfolder in $subfolders) {
     Write-Host $subfolder.name
 }

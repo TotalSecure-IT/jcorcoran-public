@@ -1,4 +1,4 @@
 ConfigLoader.psm1
 list-orgs.psm1
 logger.psm1
-OrgFoldersAndBanner.psm1
+OrgFolders.psm1

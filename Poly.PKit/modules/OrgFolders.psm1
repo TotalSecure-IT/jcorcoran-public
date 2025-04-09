@@ -28,7 +28,7 @@ function Get-GitHubRepoFolders {
     $url = "https://api.github.com/repos/$owner/$repo/contents/$pathClean"
     Write-Debug "Constructed URL: $url"
     Write-Debug "Headers: $(ConvertTo-Json $headers)"
-    if ($jsonLogFilePath) {
+    if (-not [string]::IsNullOrWhiteSpace($jsonLogFilePath)) {
         Write-JsonDebug -message "Constructed URL: $url" -jsonLogFilePath $jsonLogFilePath
         Write-JsonDebug -message "Headers: $(ConvertTo-Json $headers)" -jsonLogFilePath $jsonLogFilePath
     }
@@ -36,13 +36,13 @@ function Get-GitHubRepoFolders {
     try {
         $response = Invoke-WebRequest -Uri $url -Headers $headers -Method Get -ErrorAction Stop
         Write-Debug "HTTP response status code: $($response.StatusCode)"
-        if ($jsonLogFilePath) {
+        if (-not [string]::IsNullOrWhiteSpace($jsonLogFilePath)) {
             Write-JsonDebug -message "HTTP response status code: $($response.StatusCode)" -jsonLogFilePath $jsonLogFilePath
         }
     }
     catch {
         Write-Error "Failed to retrieve data from GitHub API: $_"
-        if ($jsonLogFilePath) {
+        if (-not [string]::IsNullOrWhiteSpace($jsonLogFilePath)) {
             Write-JsonDebug -message "Failed to retrieve data from GitHub API: $_" -jsonLogFilePath $jsonLogFilePath
         }
         return $null
@@ -50,19 +50,19 @@ function Get-GitHubRepoFolders {
 
     $responseContentPreview = $response.Content.Substring(0, [Math]::Min(200, $response.Content.Length))
     Write-Debug "Response content (first 200 chars): $responseContentPreview"
-    if ($jsonLogFilePath) {
+    if (-not [string]::IsNullOrWhiteSpace($jsonLogFilePath)) {
         Write-JsonDebug -message "Response content (first 200 chars): $responseContentPreview" -jsonLogFilePath $jsonLogFilePath
     }
     try {
         $content = ConvertFrom-Json $response.Content
         Write-Debug "JSON successfully parsed; received $(if ($content -is [array]) { $content.Count } else { 'an object' })."
-        if ($jsonLogFilePath) {
+        if (-not [string]::IsNullOrWhiteSpace($jsonLogFilePath)) {
             Write-JsonDebug -message "JSON successfully parsed; received $(if ($content -is [array]) { $content.Count } else { 'an object' })." -jsonLogFilePath $jsonLogFilePath
         }
     }
     catch {
         Write-Error "Failed to parse JSON from the response: $_"
-        if ($jsonLogFilePath) {
+        if (-not [string]::IsNullOrWhiteSpace($jsonLogFilePath)) {
             Write-JsonDebug -message "Failed to parse JSON from the response: $_" -jsonLogFilePath $jsonLogFilePath
         }
         return $null

@@ -13,20 +13,34 @@ function Initialize-Logger {
     if (-not (Test-Path -Path $hostLogFolder)) {
         New-Item -ItemType Directory -Path $hostLogFolder | Out-Null
     }
+    
+    # Create a subfolder for JSON debug logs.
+    $jsonLogFolder = Join-Path $hostLogFolder "json"
+    if (-not (Test-Path -Path $jsonLogFolder)) {
+        New-Item -ItemType Directory -Path $jsonLogFolder | Out-Null
+    }
 
-    # Create a timestamp for the primary log filename using date and 12hr time format
+    # Create a timestamp for the primary and JSON debug log filenames using date and 12hr time format
     $dateStamp = Get-Date -Format "yyyy-MM-dd"
     $timeStamp = Get-Date -Format "hh-mm-sstt"  # e.g., 08-30-45PM
+    
     $primaryLogFileName = "Poly.PKit_${dateStamp}@${timeStamp}.log"
     $primaryLogFilePath = Join-Path $hostLogFolder $primaryLogFileName
+
+    $jsonLogFileName = "json-debug_${dateStamp}@${timeStamp}.log"
+    $jsonLogFilePath = Join-Path $jsonLogFolder $jsonLogFileName
 
     # Create the primary log file with an initial header entry
     "Starting Poly.PKit log - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Out-File -FilePath $primaryLogFilePath
 
-    # Return a custom object containing the log folder and primary log file path
+    # Create the JSON debug log file header
+    "JSON Debug Log - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Out-File -FilePath $jsonLogFilePath
+
+    # Return a custom object containing the log folder and log file paths
     return [PSCustomObject]@{
         HostLogFolder      = $hostLogFolder
         PrimaryLogFilePath = $primaryLogFilePath
+        JsonLogFilePath    = $jsonLogFilePath
     }
 }
 
@@ -77,4 +91,17 @@ function Write-SystemLog {
     }
 }
 
-Export-ModuleMember -Function Initialize-Logger, Write-Log, Write-SystemLog
+function Write-JsonDebug {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$message,
+
+        [Parameter(Mandatory=$true)]
+        [string]$jsonLogFilePath
+    )
+    $logTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff"
+    $logEntry = "[$logTimestamp] $message"
+    Add-Content -Path $jsonLogFilePath -Value $logEntry
+}
+
+Export-ModuleMember -Function Initialize-Logger, Write-Log, Write-SystemLog, Write-JsonDebug

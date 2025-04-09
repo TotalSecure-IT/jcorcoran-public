@@ -60,8 +60,8 @@ function Get-GitHubRepoFolders {
     return $content
 }
 
-# Helper function to recursively replicate subfolders (only if submenu.txt exists)
-function Replicate-Folder {
+# New function: Replicate-FolderStructure
+function Replicate-FolderStructure {
     param(
         [Parameter(Mandatory = $true)][string]$remotePath,
         [Parameter(Mandatory = $true)][string]$localParent,
@@ -71,14 +71,14 @@ function Replicate-Folder {
         [Parameter(Mandatory = $false)][string]$primaryLogFilePath,
         [string]$jsonLogFilePath = $Global:JsonLogFilePath
     )
-    
-    Write-Debug "Replicating folder: RemotePath='$remotePath', LocalParent='$localParent'"
+    Write-Debug "Replicating folder structure: RemotePath='$remotePath', LocalParent='$localParent'"
     $contents = Get-GitHubRepoFolders -owner $owner -repo $repo -token $token -path $remotePath -jsonLogFilePath $jsonLogFilePath
     if (-not $contents) {
         Write-Debug "No contents found for $remotePath; skipping."
         return
     }
     
+    # Process subdirectories
     $dirs = $contents | Where-Object { $_.type -eq "dir" }
     foreach ($dir in $dirs) {
         $dirRemotePath = Join-Path $remotePath $dir.name
@@ -95,23 +95,18 @@ function Replicate-Folder {
             else {
                 Write-Debug "Local folder already exists: $localSubFolder"
             }
-            # Download submenu.txt first if missing.
+            # Instead of downloading submenu.txt now, add to global list if it's missing.
             $localSubmenu = Join-Path $localSubFolder "submenu.txt"
             $submenuRemote = $subContents | Where-Object { $_.type -eq "file" -and $_.name -ieq "submenu.txt" } | Select-Object -First 1
             if ($submenuRemote -and -not (Test-Path $localSubmenu)) {
-                Write-Host "Downloading submenu.txt for folder $dirRemotePath" -ForegroundColor Cyan
-                if ($primaryLogFilePath) {
-                    Write-Log -message "Downloading submenu.txt for folder $dirRemotePath" -logFilePath $primaryLogFilePath
-                }
-                try {
-                    Invoke-WebRequest -Uri $submenuRemote.download_url -OutFile $localSubmenu -UseBasicParsing
-                }
-                catch {
-                    Write-Error "Failed to download submenu.txt for folder $dirRemotePath $_"
+                if (-not $Global:SubmenuDownloadList) { $Global:SubmenuDownloadList = @() }
+                $Global:SubmenuDownloadList += [PSCustomObject]@{
+                    RemoteSubmenuURL = $submenuRemote.download_url
+                    LocalSubmenuPath = $localSubmenu
                 }
             }
-            # Recurse into this subfolder.
-            Replicate-Folder -remotePath $dirRemotePath -localParent $localSubFolder -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath -jsonLogFilePath $jsonLogFilePath
+            # Recurse to replicate deeper folder structure.
+            Replicate-FolderStructure -remotePath $dirRemotePath -localParent $localSubFolder -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath -jsonLogFilePath $jsonLogFilePath
         }
         else {
             Write-Debug "Skipping folder '$($dir.name)' because submenu.txt was not found in remote path $dirRemotePath."
@@ -119,6 +114,26 @@ function Replicate-Folder {
     }
 }
 
+# New function: Download-SubmenusParallel
+function Download-SubmenusParallel {
+    param(
+        [Parameter(Mandatory = $true)] [array]$downloadList,
+        [Parameter(Mandatory = $true)] [string]$jsonLogFilePath
+    )
+    Write-Debug "Starting parallel download of submenu.txt files..."
+    $downloadList | ForEach-Object -Parallel {
+        param($item)
+        try {
+            Invoke-WebRequest -Uri $item.RemoteSubmenuURL -OutFile $item.LocalSubmenuPath -UseBasicParsing
+            Write-Output "Downloaded submenu: $($item.LocalSubmenuPath)"
+        }
+        catch {
+            Write-Error "Error downloading submenu from $($item.RemoteSubmenuURL): $_"
+        }
+    } -ThrottleLimit 5
+}
+
+# Modified Update-OrgFolders: Replicates folder structure first, then downloads submenu.txt files in parallel.
 function Update-OrgFolders {
     [CmdletBinding()]
     param(
@@ -134,6 +149,9 @@ function Update-OrgFolders {
     )
     Write-Debug "Entering Update-OrgFolders with mode: $mode"
     if ($mode -eq "ONLINE") {
+        # Initialize the global download list.
+        $Global:SubmenuDownloadList = @()
+
         $apiRoot = "Poly.PKit\Orgs"
         $localOrgsRoot = Join-Path $workingDir "orgs"
         if (-not (Test-Path $localOrgsRoot)) {
@@ -154,21 +172,17 @@ function Update-OrgFolders {
                             Write-Log -message "Created org folder: $localOrgFolder" -logFilePath $primaryLogFilePath
                         }
                     }
+                    # For the top-level org folder, add submenu.txt download task if missing.
                     $localSubmenu = Join-Path $localOrgFolder "submenu.txt"
                     $submenuRemote = $orgContents | Where-Object { $_.type -eq "file" -and $_.name -ieq "submenu.txt" } | Select-Object -First 1
                     if ($submenuRemote -and -not (Test-Path $localSubmenu)) {
-                        Write-Host "Downloading submenu.txt for org folder $orgRemotePath" -ForegroundColor Cyan
-                        if ($primaryLogFilePath) {
-                            Write-Log -message "Downloading submenu.txt for org folder $orgRemotePath" -logFilePath $primaryLogFilePath
-                        }
-                        try {
-                            Invoke-WebRequest -Uri $submenuRemote.download_url -OutFile $localSubmenu -UseBasicParsing
-                        }
-                        catch {
-                            Write-Error "Failed to download submenu.txt for org folder $orgRemotePath $_"
+                        $Global:SubmenuDownloadList += [PSCustomObject]@{
+                            RemoteSubmenuURL = $submenuRemote.download_url
+                            LocalSubmenuPath = $localSubmenu
                         }
                     }
-                    Replicate-Folder -remotePath $orgRemotePath -localParent $localOrgFolder -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath -jsonLogFilePath $jsonLogFilePath
+                    # Replicate folder structure inside this org folder.
+                    Replicate-FolderStructure -remotePath $orgRemotePath -localParent $localOrgFolder -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath -jsonLogFilePath $jsonLogFilePath
                 }
                 else {
                     Write-Host "Skipping org folder '$($org.name)' because submenu.txt was not found." -ForegroundColor Yellow
@@ -184,6 +198,14 @@ function Update-OrgFolders {
                 Write-Log -message "No organization folders retrieved from GitHub." -logFilePath $primaryLogFilePath
             }
         }
+        # After replicating the folder structure, download all missing submenu.txt files in parallel.
+        if ($Global:SubmenuDownloadList.Count -gt 0) {
+            Write-Host "Downloading missing submenu.txt files in parallel..." -ForegroundColor Cyan
+            Download-SubmenusParallel -downloadList $Global:SubmenuDownloadList -jsonLogFilePath $jsonLogFilePath
+        }
+        else {
+            Write-Debug "No submenu.txt files need to be downloaded."
+        }
     }
     Write-Debug "Exiting Update-OrgFolders."
 }
@@ -191,62 +213,62 @@ function Update-OrgFolders {
 function Sync-OrgFolderContents {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)][string]$workingDir,
-        [Parameter(Mandatory = $true)][string]$orgRelativePath,
-        [Parameter(Mandatory = $true)][string]$owner,
-        [Parameter(Mandatory = $true)][string]$repo,
-        [Parameter(Mandatory = $true)][string]$token,
-        [Parameter(Mandatory = $false)][string]$primaryLogFilePath,
-        [string]$jsonLogFilePath = $Global:JsonLogFilePath
+         [Parameter(Mandatory = $true)][string]$workingDir,
+         [Parameter(Mandatory = $true)][string]$orgRelativePath,
+         [Parameter(Mandatory = $true)][string]$owner,
+         [Parameter(Mandatory = $true)][string]$repo,
+         [Parameter(Mandatory = $true)][string]$token,
+         [Parameter(Mandatory = $false)][string]$primaryLogFilePath,
+         [string]$jsonLogFilePath = $Global:JsonLogFilePath
     )
     Write-Debug "Syncing contents for org folder: $orgRelativePath"
     $apiRoot = "Poly.PKit\Orgs"
     if ($orgRelativePath -ne "") {
-        $remotePath = Join-Path $apiRoot $orgRelativePath
+         $remotePath = Join-Path $apiRoot $orgRelativePath
     }
     else {
-        $remotePath = $apiRoot
+         $remotePath = $apiRoot
     }
     $contents = Get-GitHubRepoFolders -owner $owner -repo $repo -token $token -path $remotePath -jsonLogFilePath $jsonLogFilePath
     if (-not $contents) {
-        Write-Error "No contents retrieved for remote path $remotePath"
-        return
+         Write-Error "No contents retrieved for remote path $remotePath"
+         return
     }
     $localFolder = Join-Path (Join-Path $workingDir "orgs") $orgRelativePath
     if (-not (Test-Path $localFolder)) {
-        Write-Error "Local folder $localFolder does not exist. Cannot sync."
-        return
+         Write-Error "Local folder $localFolder does not exist. Cannot sync."
+         return
     }
     $files = $contents | Where-Object { $_.type -eq "file" }
     $orderedFiles = @()
     if ($files) {
-        foreach ($file in $files) {
-            if ($file.name -ieq "submenu.txt") {
-                $orderedFiles += $file
-            }
-        }
-        foreach ($file in $files) {
-            if ($file.name -ieq "submenu.txt") { continue }
-            $orderedFiles += $file
-        }
+         foreach ($file in $files) {
+              if ($file.name -ieq "submenu.txt") {
+                   $orderedFiles += $file
+              }
+         }
+         foreach ($file in $files) {
+              if ($file.name -ieq "submenu.txt") { continue }
+              $orderedFiles += $file
+         }
     }
     foreach ($file in $orderedFiles) {
-        $localFilePath = Join-Path $localFolder $file.name
-        if (-not (Test-Path $localFilePath)) {
-            Write-Host "Downloading missing file: $($file.name) to $localFilePath" -ForegroundColor Cyan
-            if ($primaryLogFilePath) {
-                Write-Log -message "Downloading missing file: $($file.name) to $localFilePath" -logFilePath $primaryLogFilePath
-            }
-            try {
-                Invoke-WebRequest -Uri $file.download_url -OutFile $localFilePath -UseBasicParsing
-            }
-            catch {
-                Write-Error "Failed to download file $($file.name): $_"
-            }
-        }
-        else {
-            Write-Debug "File already exists locally: $localFilePath"
-        }
+         $localFilePath = Join-Path $localFolder $file.name
+         if (-not (Test-Path $localFilePath)) {
+              Write-Host "Downloading missing file: $($file.name) to $localFilePath" -ForegroundColor Cyan
+              if ($primaryLogFilePath) {
+                   Write-Log -message "Downloading missing file: $($file.name) to $localFilePath" -logFilePath $primaryLogFilePath
+              }
+              try {
+                   Invoke-WebRequest -Uri $file.download_url -OutFile $localFilePath -UseBasicParsing
+              }
+              catch {
+                   Write-Error "Failed to download file $($file.name): $_"
+              }
+         }
+         else {
+              Write-Debug "File already exists locally: $localFilePath"
+         }
     }
 }
 

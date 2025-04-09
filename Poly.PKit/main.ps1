@@ -1,6 +1,7 @@
 <#
 *~~~~~~~~~~~~~~~~~~~~~*
 |  Poly.PKit v1.0.1b  |
+|    ONLINE MODE     |
 *~~~~~~~~~~~~~~~~~~~~~*
 #>
 
@@ -10,7 +11,6 @@ Clear-Host
 #------------------------------------------------------------------
 # Set Working Directories
 #------------------------------------------------------------------
-# workingDir is the parent folder where launcher.bat resides.
 $workingDir = Split-Path -Parent $PSScriptRoot
 Set-Location $workingDir
 
@@ -24,59 +24,41 @@ if (-not (Test-Path -Path $modulesFolder)) {
 }
 
 #------------------------------------------------------------------
-# Determine Mode (ONLINE vs CACHED) and Download Modules if ONLINE
+# Force mode to ONLINE
 #------------------------------------------------------------------
-$mode = $null
-if ($args -contains '--online-mode') {
-    $mode = "ONLINE"
-    Write-Host "Mode:" -NoNewline
-    Write-Host " ONLINE" -ForegroundColor Green
+$mode = "ONLINE"
+Write-Host "Mode:" -NoNewline; Write-Host " ONLINE" -ForegroundColor Green
+
+#------------------------------------------------------------------
+# Download Modules Manifest and Modules from GitHub
+#------------------------------------------------------------------
+$modulesManifestURL = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/modules/modules_manifest.txt"
+try {
+    Write-Host "Downloading modules manifest from GitHub..."
+    $manifestResponse = Invoke-WebRequest -Uri $modulesManifestURL -UseBasicParsing
+    $moduleList = $manifestResponse.Content -split "\r?\n" | Where-Object { $_.Trim() -ne "" }
 }
-elseif ($args -contains '--cached-mode') {
-    $mode = "CACHED"
-    Write-Host "Mode:" -NoNewline
-    Write-Host " CACHED" -ForegroundColor Red
-}
-else {
-    Write-Host "No mode specified. Defaulting to CACHED."
-    $mode = "CACHED"
+catch {
+    Write-Host "Failed to download modules manifest. Exiting." -ForegroundColor Red
+    exit 1
 }
 
-if ($mode -eq "ONLINE") {
-    # Download modules manifest from GitHub.
-    $modulesManifestURL = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/modules/modules_manifest.txt"
+foreach ($moduleFile in $moduleList) {
+    $moduleFileTrimmed = $moduleFile.Trim()
+    $moduleURL = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/modules/$moduleFileTrimmed"
+    $localModulePath = Join-Path $modulesFolder $moduleFileTrimmed
     try {
-        Write-Host "Downloading modules manifest from GitHub..."
-        $manifestResponse = Invoke-WebRequest -Uri $modulesManifestURL -UseBasicParsing
-        $moduleList = $manifestResponse.Content -split "\r?\n" | Where-Object {$_.Trim() -ne ""}
+        Invoke-WebRequest -Uri $moduleURL -OutFile $localModulePath -UseBasicParsing
+        Write-Host "Downloaded module: $moduleFileTrimmed" -ForegroundColor Cyan
     }
     catch {
-        Write-Host "Failed to download modules manifest. Exiting." -ForegroundColor Red
-        exit 1
+        Write-Host "Failed to download module: $moduleFileTrimmed" -ForegroundColor Red
     }
-
-    # Download each module from the manifest.
-    foreach ($moduleFile in $moduleList) {
-        $moduleFileTrimmed = $moduleFile.Trim()
-        $moduleURL = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/modules/$moduleFileTrimmed"
-        $localModulePath = Join-Path $modulesFolder $moduleFileTrimmed
-        try {
-            Invoke-WebRequest -Uri $moduleURL -OutFile $localModulePath -UseBasicParsing
-            Write-Host "Downloaded module: $moduleFileTrimmed" -ForegroundColor Cyan
-        }
-        catch {
-            Write-Host "Failed to download module: $moduleFileTrimmed" -ForegroundColor Red
-        }
-    }
-}
-elseif ($mode -eq "CACHED") {
-    Write-Host "Skipping module downloads in CACHED mode." -ForegroundColor Yellow
 }
 
 #------------------------------------------------------------------
 # Import Required Modules
 #------------------------------------------------------------------
-
 # Logger Module
 $loggerModulePath = Join-Path $modulesFolder "logger.psm1"
 if (Test-Path -Path $loggerModulePath) {
@@ -97,9 +79,8 @@ else {
     exit 1
 }
 
-# OrgFolders Module (optional; used later)
-$orgBannerModulePath = Join-Path $modulesFolder "OrgFolders.psm1"
-# (We'll check for it later when calling its functionality)
+# OrgFolders Module
+$orgFoldersModulePath = Join-Path $modulesFolder "OrgFolders.psm1"
 
 #------------------------------------------------------------------
 # Logging Initialization
@@ -127,17 +108,13 @@ $repo  = $config.repo
 $token = $config.token
 
 Write-Host "Configuration loaded:"
-Write-Host "  owner: " -NoNewline
-Write-Host "$owner" -ForegroundColor Green
-Write-Host "  repo : " -NoNewline
-Write-Host "$repo" -ForegroundColor Green
-Write-Host "  token: " -NoNewline
-Write-Host "$token" -ForegroundColor Green
+Write-Host "  owner: " -NoNewline; Write-Host "$owner" -ForegroundColor Green
+Write-Host "  repo : " -NoNewline; Write-Host "$repo" -ForegroundColor Green
+Write-Host "  token: " -NoNewline; Write-Host "$token" -ForegroundColor Green
 
 #------------------------------------------------------------------
-# Basic Folder Creation (configs, orgs, and modules in working directory)
+# Basic Folder Creation (configs, orgs, and modules)
 #------------------------------------------------------------------
-# Verify 'configs' folder exists.
 $configsPath = Join-Path $workingDir "configs"
 if (-Not (Test-Path -Path $configsPath)) {
     Write-Host "Warning: 'configs' folder not found. It should exist prior to script launch." -ForegroundColor Yellow
@@ -148,7 +125,6 @@ else {
     if ($primaryLogFilePath) { Write-Log -message "'configs' folder exists." -logFilePath $primaryLogFilePath }
 }
 
-# Create 'orgs' folder if needed.
 $orgsPath = Join-Path $workingDir "orgs"
 if (-Not (Test-Path -Path $orgsPath)) {
     Write-Host "Creating folder 'orgs'..."
@@ -159,8 +135,10 @@ else {
     Write-Host "Folder 'orgs' already exists."
     if ($primaryLogFilePath) { Write-Log -message "Folder 'orgs' already exists." -logFilePath $primaryLogFilePath }
 }
-        
-# Download banner files and save them under workingDir\configs.
+
+#------------------------------------------------------------------
+# Download Banner Files and Save to 'configs' Folder
+#------------------------------------------------------------------
 $configsPath = Join-Path $workingDir "configs"
 $mainbannerURL = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/configs/mainbanner.txt"
 $motdURL = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/configs/motd.txt"
@@ -193,9 +171,8 @@ catch {
 }
 
 #------------------------------------------------------------------
-# Additional Functionality: Organization Folders and Banner Download
+# Additional Functionality: Organization Folders
 #------------------------------------------------------------------
-$orgFoldersModulePath = Join-Path $modulesFolder "OrgFolders.psm1"
 if (Test-Path -Path $orgFoldersModulePath) {
     Import-Module $orgFoldersModulePath -Force
     Write-Host "OrgFolders module imported." -ForegroundColor Cyan
@@ -206,8 +183,12 @@ if (Test-Path -Path $orgFoldersModulePath) {
     Update-OrgFolders -workingDir $workingDir -mode $mode -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath
 }
 else {
-    Write-Host "OrgFolders module not found. Skipping additional organization and banner processing." -ForegroundColor Yellow
+    Write-Host "OrgFolders module not found. Skipping additional organization processing." -ForegroundColor Yellow
     if ($primaryLogFilePath) { 
-        Write-Log -message "OrgFolders module not found. Skipping additional organization and banner processing." -logFilePath $primaryLogFilePath 
+        Write-Log -message "OrgFolders module not found. Skipping additional organization processing." -logFilePath $primaryLogFilePath 
     }
 }
+
+#------------------------------------------------------------------
+# End of main.ps1 (ONLINE mode)
+#------------------------------------------------------------------

@@ -114,17 +114,6 @@ function Update-OrgFolders {
             }
         }
     }
-    elseif ($mode -eq "CACHED") {
-        # In cached mode, simply print messages.
-        Write-Host "This app is bleeding edge with internet." -ForegroundColor Yellow
-        if ($primaryLogFilePath) {
-            Write-Log -message "Message: This app is bleeding edge with internet." -logFilePath $primaryLogFilePath
-        }
-        Write-Host "Running in CACHED mode." -ForegroundColor Yellow
-        if ($primaryLogFilePath) {
-            Write-Log -message "Running in CACHED mode for folder creation." -logFilePath $primaryLogFilePath
-        }
-    }
     Write-Debug "Exiting Update-OrgFolders."
 }
 

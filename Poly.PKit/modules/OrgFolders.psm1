@@ -99,7 +99,7 @@ function Replicate-Folder {
                     Invoke-WebRequest -Uri $submenuRemote.download_url -OutFile $localSubmenu -UseBasicParsing
                 }
                 catch {
-                    Write-Error "Failed to download submenu.txt for folder $dirRemotePath: $_"
+                    Write-Error "Failed to download submenu.txt for folder $dirRemotePath $_"
                 }
             }
             # Recurse into the subfolder.
@@ -159,7 +159,7 @@ function Update-OrgFolders {
                             Invoke-WebRequest -Uri $submenuRemote.download_url -OutFile $localSubmenu -UseBasicParsing
                         }
                         catch {
-                            Write-Error "Failed to download submenu.txt for org folder $orgRemotePath: $_"
+                            Write-Error "Failed to download submenu.txt for org folder $orgRemotePath $_"
                         }
                     }
                     # Now replicate any subfolders recursively.

@@ -87,7 +87,8 @@ $orgFoldersModulePath = Join-Path $modulesFolder "OrgFolders.psm1"
 #------------------------------------------------------------------
 $hostName = $env:COMPUTERNAME
 if (Get-Module -Name logger) {
-    $logInfo = Initialize-Logger -workingDir $workingDir -hostName $hostName
+    $logInfo = Initialize-Logger -workingDir $workingDir -hostName $env:COMPUTERNAME
+    $Global:JsonLogFilePath = $logInfo.JsonLogFilePath
     $hostLogFolder = $logInfo.HostLogFolder
     $primaryLogFilePath = $logInfo.PrimaryLogFilePath
     Write-Log -message "Primary log file created: $(Split-Path $primaryLogFilePath -Leaf)" -logFilePath $primaryLogFilePath
@@ -180,7 +181,7 @@ if (Test-Path -Path $orgFoldersModulePath) {
         Write-Log -message "OrgFolders module imported." -logFilePath $primaryLogFilePath 
     }
     
-    Update-OrgFolders -workingDir $workingDir -mode $mode -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath
+    Update-OrgFolders -workingDir $workingDir -mode "ONLINE" -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath -jsonLogFilePath $logInfo.JsonLogFilePath
 }
 else {
     Write-Host "OrgFolders module not found. Skipping additional organization processing." -ForegroundColor Yellow

@@ -4,11 +4,8 @@ function Get-GitHubRepoFolders {
         [string]$repo,
         [string]$token,
         [string]$path = "",
-        [Parameter(Mandatory = $true)][string]$jsonLogFilePath
+        [string]$jsonLogFilePath = $Global:JsonLogFilePath
     )
-    if ([string]::IsNullOrWhiteSpace($jsonLogFilePath)) {
-        throw "jsonLogFilePath parameter is mandatory and cannot be an empty string."
-    }
 
     Write-Debug "Entering Get-GitHubRepoFolders..."
     Write-Debug "Owner: $owner"
@@ -63,6 +60,7 @@ function Get-GitHubRepoFolders {
     return $content
 }
 
+# Helper function to recursively replicate subfolders (only if submenu.txt exists)
 function Replicate-Folder {
     param(
         [Parameter(Mandatory = $true)][string]$remotePath,
@@ -71,11 +69,8 @@ function Replicate-Folder {
         [Parameter(Mandatory = $true)][string]$repo,
         [Parameter(Mandatory = $true)][string]$token,
         [Parameter(Mandatory = $false)][string]$primaryLogFilePath,
-        [Parameter(Mandatory = $true)][string]$jsonLogFilePath
+        [string]$jsonLogFilePath = $Global:JsonLogFilePath
     )
-    if ([string]::IsNullOrWhiteSpace($jsonLogFilePath)) {
-        throw "jsonLogFilePath parameter is mandatory and cannot be an empty string."
-    }
     
     Write-Debug "Replicating folder: RemotePath='$remotePath', LocalParent='$localParent'"
     $contents = Get-GitHubRepoFolders -owner $owner -repo $repo -token $token -path $remotePath -jsonLogFilePath $jsonLogFilePath
@@ -135,11 +130,8 @@ function Update-OrgFolders {
         [Parameter(Mandatory = $true)][string]$repo,
         [Parameter(Mandatory = $true)][string]$token,
         [Parameter(Mandatory = $false)][string]$primaryLogFilePath,
-        [Parameter(Mandatory = $true)][string]$jsonLogFilePath
+        [string]$jsonLogFilePath = $Global:JsonLogFilePath
     )
-    if ([string]::IsNullOrWhiteSpace($jsonLogFilePath)) {
-        throw "jsonLogFilePath parameter is mandatory and cannot be an empty string."
-    }
     Write-Debug "Entering Update-OrgFolders with mode: $mode"
     if ($mode -eq "ONLINE") {
         $apiRoot = "Poly.PKit\Orgs"
@@ -205,11 +197,8 @@ function Sync-OrgFolderContents {
         [Parameter(Mandatory = $true)][string]$repo,
         [Parameter(Mandatory = $true)][string]$token,
         [Parameter(Mandatory = $false)][string]$primaryLogFilePath,
-        [Parameter(Mandatory = $true)][string]$jsonLogFilePath
+        [string]$jsonLogFilePath = $Global:JsonLogFilePath
     )
-    if ([string]::IsNullOrWhiteSpace($jsonLogFilePath)) {
-        throw "jsonLogFilePath parameter is mandatory and cannot be an empty string."
-    }
     Write-Debug "Syncing contents for org folder: $orgRelativePath"
     $apiRoot = "Poly.PKit\Orgs"
     if ($orgRelativePath -ne "") {

@@ -4,7 +4,7 @@ function Get-GitHubRepoFolders {
         [string]$repo,
         [string]$token,
         [string]$path = "",
-        [string]$jsonLogFilePath
+        [Parameter(Mandatory = $true)] [string]$jsonLogFilePath
     )
 
     Write-Debug "Entering Get-GitHubRepoFolders..."
@@ -28,43 +28,33 @@ function Get-GitHubRepoFolders {
     $url = "https://api.github.com/repos/$owner/$repo/contents/$pathClean"
     Write-Debug "Constructed URL: $url"
     Write-Debug "Headers: $(ConvertTo-Json $headers)"
-    if (-not [string]::IsNullOrWhiteSpace($jsonLogFilePath)) {
-        Write-JsonDebug -message "Constructed URL: $url" -jsonLogFilePath $jsonLogFilePath
-        Write-JsonDebug -message "Headers: $(ConvertTo-Json $headers)" -jsonLogFilePath $jsonLogFilePath
-    }
+    
+    Write-JsonDebug -message "Constructed URL: $url" -jsonLogFilePath $jsonLogFilePath
+    Write-JsonDebug -message "Headers: $(ConvertTo-Json $headers)" -jsonLogFilePath $jsonLogFilePath
 
     try {
         $response = Invoke-WebRequest -Uri $url -Headers $headers -Method Get -ErrorAction Stop
         Write-Debug "HTTP response status code: $($response.StatusCode)"
-        if (-not [string]::IsNullOrWhiteSpace($jsonLogFilePath)) {
-            Write-JsonDebug -message "HTTP response status code: $($response.StatusCode)" -jsonLogFilePath $jsonLogFilePath
-        }
+        Write-JsonDebug -message "HTTP response status code: $($response.StatusCode)" -jsonLogFilePath $jsonLogFilePath
     }
     catch {
         Write-Error "Failed to retrieve data from GitHub API: $_"
-        if (-not [string]::IsNullOrWhiteSpace($jsonLogFilePath)) {
-            Write-JsonDebug -message "Failed to retrieve data from GitHub API: $_" -jsonLogFilePath $jsonLogFilePath
-        }
+        Write-JsonDebug -message "Failed to retrieve data from GitHub API: $_" -jsonLogFilePath $jsonLogFilePath
         return $null
     }
 
     $responseContentPreview = $response.Content.Substring(0, [Math]::Min(200, $response.Content.Length))
     Write-Debug "Response content (first 200 chars): $responseContentPreview"
-    if (-not [string]::IsNullOrWhiteSpace($jsonLogFilePath)) {
-        Write-JsonDebug -message "Response content (first 200 chars): $responseContentPreview" -jsonLogFilePath $jsonLogFilePath
-    }
+    Write-JsonDebug -message "Response content (first 200 chars): $responseContentPreview" -jsonLogFilePath $jsonLogFilePath
+
     try {
         $content = ConvertFrom-Json $response.Content
         Write-Debug "JSON successfully parsed; received $(if ($content -is [array]) { $content.Count } else { 'an object' })."
-        if (-not [string]::IsNullOrWhiteSpace($jsonLogFilePath)) {
-            Write-JsonDebug -message "JSON successfully parsed; received $(if ($content -is [array]) { $content.Count } else { 'an object' })." -jsonLogFilePath $jsonLogFilePath
-        }
+        Write-JsonDebug -message "JSON successfully parsed; received $(if ($content -is [array]) { $content.Count } else { 'an object' })." -jsonLogFilePath $jsonLogFilePath
     }
     catch {
         Write-Error "Failed to parse JSON from the response: $_"
-        if (-not [string]::IsNullOrWhiteSpace($jsonLogFilePath)) {
-            Write-JsonDebug -message "Failed to parse JSON from the response: $_" -jsonLogFilePath $jsonLogFilePath
-        }
+        Write-JsonDebug -message "Failed to parse JSON from the response: $_" -jsonLogFilePath $jsonLogFilePath
         return $null
     }
     
@@ -74,13 +64,13 @@ function Get-GitHubRepoFolders {
 # Helper function to recursively replicate subfolders (only if submenu.txt exists)
 function Replicate-Folder {
     param(
-        [Parameter(Mandatory = $true)][string]$remotePath,
-        [Parameter(Mandatory = $true)][string]$localParent,
-        [Parameter(Mandatory = $true)][string]$owner,
-        [Parameter(Mandatory = $true)][string]$repo,
-        [Parameter(Mandatory = $true)][string]$token,
-        [Parameter(Mandatory = $false)][string]$primaryLogFilePath,
-        [Parameter(Mandatory = $false)][string]$jsonLogFilePath
+        [Parameter(Mandatory = $true)] [string]$remotePath,
+        [Parameter(Mandatory = $true)] [string]$localParent,
+        [Parameter(Mandatory = $true)] [string]$owner,
+        [Parameter(Mandatory = $true)] [string]$repo,
+        [Parameter(Mandatory = $true)] [string]$token,
+        [Parameter(Mandatory = $false)] [string]$primaryLogFilePath,
+        [Parameter(Mandatory = $true)] [string]$jsonLogFilePath
     )
     
     Write-Debug "Replicating folder: RemotePath='$remotePath', LocalParent='$localParent'"
@@ -106,7 +96,7 @@ function Replicate-Folder {
             else {
                 Write-Debug "Local folder already exists: $localSubFolder"
             }
-            # Download submenu.txt first if missing.
+            # Download submenu.txt first.
             $localSubmenu = Join-Path $localSubFolder "submenu.txt"
             $submenuRemote = $subContents | Where-Object { $_.type -eq "file" -and $_.name -ieq "submenu.txt" } | Select-Object -First 1
             if ($submenuRemote -and -not (Test-Path $localSubmenu)) {
@@ -121,7 +111,7 @@ function Replicate-Folder {
                     Write-Error "Failed to download submenu.txt for folder $dirRemotePath $_"
                 }
             }
-            # Recurse into this subfolder.
+            # Recurse into subfolder.
             Replicate-Folder -remotePath $dirRemotePath -localParent $localSubFolder -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath -jsonLogFilePath $jsonLogFilePath
         }
         else {
@@ -133,15 +123,15 @@ function Replicate-Folder {
 function Update-OrgFolders {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)][string]$workingDir,
+        [Parameter(Mandatory = $true)] [string]$workingDir,
         [Parameter(Mandatory = $true)]
             [ValidateSet("ONLINE","CACHED")]
             [string]$mode,
-        [Parameter(Mandatory = $true)][string]$owner,
-        [Parameter(Mandatory = $true)][string]$repo,
-        [Parameter(Mandatory = $true)][string]$token,
-        [Parameter(Mandatory = $false)][string]$primaryLogFilePath,
-        [Parameter(Mandatory = $false)][string]$jsonLogFilePath
+        [Parameter(Mandatory = $true)] [string]$owner,
+        [Parameter(Mandatory = $true)] [string]$repo,
+        [Parameter(Mandatory = $true)] [string]$token,
+        [Parameter(Mandatory = $false)] [string]$primaryLogFilePath,
+        [Parameter(Mandatory = $true)] [string]$jsonLogFilePath
     )
     Write-Debug "Entering Update-OrgFolders with mode: $mode"
     if ($mode -eq "ONLINE") {
@@ -202,13 +192,13 @@ function Update-OrgFolders {
 function Sync-OrgFolderContents {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)][string]$workingDir,
-        [Parameter(Mandatory = $true)][string]$orgRelativePath,
-        [Parameter(Mandatory = $true)][string]$owner,
-        [Parameter(Mandatory = $true)][string]$repo,
-        [Parameter(Mandatory = $true)][string]$token,
-        [Parameter(Mandatory = $false)][string]$primaryLogFilePath,
-        [Parameter(Mandatory = $false)][string]$jsonLogFilePath
+        [Parameter(Mandatory = $true)] [string]$workingDir,
+        [Parameter(Mandatory = $true)] [string]$orgRelativePath,
+        [Parameter(Mandatory = $true)] [string]$owner,
+        [Parameter(Mandatory = $true)] [string]$repo,
+        [Parameter(Mandatory = $true)] [string]$token,
+        [Parameter(Mandatory = $false)] [string]$primaryLogFilePath,
+        [Parameter(Mandatory = $true)] [string]$jsonLogFilePath
     )
     Write-Debug "Syncing contents for org folder: $orgRelativePath"
     $apiRoot = "Poly.PKit\Orgs"

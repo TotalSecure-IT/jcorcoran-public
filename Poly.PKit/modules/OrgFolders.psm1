@@ -4,7 +4,7 @@ function Get-GitHubRepoFolders {
         [string]$repo,
         [string]$token,
         [string]$path = "",
-        [Parameter(Mandatory = $true)][string]$jsonLogFilePath
+        [string]$jsonLogFilePath = $Global:JsonLogFilePath
     )
 
     Write-Debug "Entering Get-GitHubRepoFolders..."
@@ -60,7 +60,6 @@ function Get-GitHubRepoFolders {
     return $content
 }
 
-# Helper function to recursively replicate subfolders (only if submenu.txt exists)
 function Replicate-Folder {
     param(
         [Parameter(Mandatory = $true)][string]$remotePath,
@@ -69,7 +68,7 @@ function Replicate-Folder {
         [Parameter(Mandatory = $true)][string]$repo,
         [Parameter(Mandatory = $true)][string]$token,
         [Parameter(Mandatory = $false)][string]$primaryLogFilePath,
-        [Parameter(Mandatory = $true)][string]$jsonLogFilePath
+        [string]$jsonLogFilePath = $Global:JsonLogFilePath
     )
     
     Write-Debug "Replicating folder: RemotePath='$remotePath', LocalParent='$localParent'"
@@ -130,7 +129,7 @@ function Update-OrgFolders {
         [Parameter(Mandatory = $true)][string]$repo,
         [Parameter(Mandatory = $true)][string]$token,
         [Parameter(Mandatory = $false)][string]$primaryLogFilePath,
-        [Parameter(Mandatory = $true)][string]$jsonLogFilePath
+        [string]$jsonLogFilePath = $Global:JsonLogFilePath
     )
     Write-Debug "Entering Update-OrgFolders with mode: $mode"
     if ($mode -eq "ONLINE") {
@@ -197,7 +196,7 @@ function Sync-OrgFolderContents {
         [Parameter(Mandatory = $true)][string]$repo,
         [Parameter(Mandatory = $true)][string]$token,
         [Parameter(Mandatory = $false)][string]$primaryLogFilePath,
-        [Parameter(Mandatory = $true)][string]$jsonLogFilePath
+        [string]$jsonLogFilePath = $Global:JsonLogFilePath
     )
     Write-Debug "Syncing contents for org folder: $orgRelativePath"
     $apiRoot = "Poly.PKit\Orgs"

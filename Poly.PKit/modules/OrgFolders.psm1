@@ -20,7 +20,7 @@ function Get-GitHubRepoFolders {
         Write-Debug "No token provided."
     }
 
-    # Replace backslashes with forward slashes for the API URL.
+    # Convert backslashes to forward slashes for GitHub.
     $pathClean = $path -replace "\\", "/"
     Write-Debug "Cleaned path: '$pathClean'"
 
@@ -40,96 +40,88 @@ function Get-GitHubRepoFolders {
     Write-Debug "Response content (first 200 chars): $($response.Content.Substring(0, [Math]::Min(200, $response.Content.Length)))"
     try {
         $content = ConvertFrom-Json $response.Content
-        Write-Debug "JSON successfully parsed; received $(if($content -is [array]) { $content.Count } else { 'an object' })."
+        Write-Debug "JSON successfully parsed; received $(if ($content -is [array]) { $content.Count } else { 'an object' })."
     }
     catch {
         Write-Error "Failed to parse JSON from the response: $_"
         return $null
     }
     
-    # Return all items (both files and directories)
     return $content
 }
 
-# Private helper function to replicate a remote folder recursively.
+# Helper function to recursively replicate subfolders if they contain submenu.txt.
 function Replicate-Folder {
     param(
-        [string]$remotePath,        # e.g. "Poly.PKit\Orgs\MyOrg"
-        [string]$localParent,       # Parent local folder under which to create the folder.
-        [string]$owner,
-        [string]$repo,
-        [string]$token,
-        [string]$primaryLogFilePath
+        [Parameter(Mandatory=$true)][string]$remotePath,
+        [Parameter(Mandatory=$true)][string]$localParent,
+        [Parameter(Mandatory=$true)][string]$owner,
+        [Parameter(Mandatory=$true)][string]$repo,
+        [Parameter(Mandatory=$true)][string]$token,
+        [Parameter(Mandatory=$false)][string]$primaryLogFilePath
     )
+    
     Write-Debug "Replicating folder: RemotePath='$remotePath', LocalParent='$localParent'"
-
     $contents = Get-GitHubRepoFolders -owner $owner -repo $repo -token $token -path $remotePath
     if (-not $contents) {
         Write-Debug "No contents found for $remotePath; skipping."
         return
     }
-
-    # Check if this remote folder contains a submenu.txt file.
-    $submenu = $contents | Where-Object { $_.type -eq "file" -and $_.name -ieq "submenu.txt" }
-    if (-not $submenu) {
-        Write-Debug "Folder '$remotePath' does not contain submenu.txt. Skipping replication."
-        return
-    }
-
-    # Determine the folder name from remotePath and create the local folder.
-    $folderName = Split-Path $remotePath -Leaf
-    $localFolder = Join-Path $localParent $folderName
-    if (-not (Test-Path $localFolder)) {
-        New-Item -ItemType Directory -Path $localFolder | Out-Null
-        Write-Host "Created local folder: $localFolder" -ForegroundColor Green
-        if ($primaryLogFilePath) {
-            Write-Log -message "Created local folder: $localFolder" -logFilePath $primaryLogFilePath
+    
+    # Process each directory item in the current remote folder.
+    $dirs = $contents | Where-Object { $_.type -eq "dir" }
+    foreach ($dir in $dirs) {
+        $dirRemotePath = Join-Path $remotePath $dir.name
+        # Retrieve contents of the candidate subfolder.
+        $subContents = Get-GitHubRepoFolders -owner $owner -repo $repo -token $token -path $dirRemotePath
+        if ($subContents -and ($subContents | Where-Object { $_.type -eq "file" -and $_.name -ieq "submenu.txt" })) {
+            # The subfolder qualifies; create the local folder.
+            $localSubFolder = Join-Path $localParent $dir.name
+            if (-not (Test-Path $localSubFolder)) {
+                New-Item -ItemType Directory -Path $localSubFolder | Out-Null
+                Write-Host "Created local folder: $localSubFolder" -ForegroundColor Green
+                if ($primaryLogFilePath) {
+                    Write-Log -message "Created local folder: $localSubFolder" -logFilePath $primaryLogFilePath
+                }
+            }
+            else {
+                Write-Debug "Local folder already exists: $localSubFolder"
+            }
+            # Download submenu.txt first if missing.
+            $localSubmenu = Join-Path $localSubFolder "submenu.txt"
+            $submenuRemote = $subContents | Where-Object { $_.type -eq "file" -and $_.name -ieq "submenu.txt" } | Select-Object -First 1
+            if ($submenuRemote -and -not (Test-Path $localSubmenu)) {
+                Write-Host "Downloading submenu.txt for folder $dirRemotePath" -ForegroundColor Cyan
+                if ($primaryLogFilePath) {
+                    Write-Log -message "Downloading submenu.txt for folder $dirRemotePath" -logFilePath $primaryLogFilePath
+                }
+                try {
+                    Invoke-WebRequest -Uri $submenuRemote.download_url -OutFile $localSubmenu -UseBasicParsing
+                }
+                catch {
+                    Write-Error "Failed to download submenu.txt for folder $dirRemotePath: $_"
+                }
+            }
+            # Recurse into the subfolder.
+            Replicate-Folder -remotePath $dirRemotePath -localParent $localSubFolder -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath
         }
-    }
-    else {
-        Write-Debug "Local folder already exists: $localFolder"
-    }
-
-    # Download submenu.txt first if not present.
-    $localSubmenu = Join-Path $localFolder "submenu.txt"
-    if (-not (Test-Path $localSubmenu)) {
-        Write-Host "Downloading submenu.txt for folder $remotePath" -ForegroundColor Cyan
-        if ($primaryLogFilePath) {
-            Write-Log -message "Downloading submenu.txt for folder $remotePath" -logFilePath $primaryLogFilePath
+        else {
+            Write-Debug "Skipping folder '$dir.name' because submenu.txt was not found in remote path $dirRemotePath."
         }
-        try {
-            Invoke-WebRequest -Uri $submenu.download_url -OutFile $localSubmenu -UseBasicParsing
-        }
-        catch {
-            Write-Error "Failed to download submenu.txt for folder $remotePath $_"
-        }
-    }
-
-    # Process subdirectories recursively.
-    $subDirs = $contents | Where-Object { $_.type -eq "dir" }
-    foreach ($dir in $subDirs) {
-        $newRemotePath = Join-Path $remotePath $dir.name
-        # Call Replicate-Folder recursively. The current local folder becomes the new local parent.
-        Replicate-Folder -remotePath $newRemotePath -localParent $localFolder -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath
     }
 }
 
 function Update-OrgFolders {
     [CmdletBinding()]
     param(
+        [Parameter(Mandatory = $true)][string]$workingDir,
         [Parameter(Mandatory = $true)]
-        [string]$workingDir,
-        [Parameter(Mandatory = $true)]
-        [ValidateSet("ONLINE","CACHED")]
-        [string]$mode,
-        [Parameter(Mandatory = $true)]
-        [string]$owner,
-        [Parameter(Mandatory = $true)]
-        [string]$repo,
-        [Parameter(Mandatory = $true)]
-        [string]$token,
-        [Parameter(Mandatory = $false)]
-        [string]$primaryLogFilePath
+            [ValidateSet("ONLINE","CACHED")]
+            [string]$mode,
+        [Parameter(Mandatory = $true)][string]$owner,
+        [Parameter(Mandatory = $true)][string]$repo,
+        [Parameter(Mandatory = $true)][string]$token,
+        [Parameter(Mandatory = $false)][string]$primaryLogFilePath
     )
     Write-Debug "Entering Update-OrgFolders with mode: $mode"
     if ($mode -eq "ONLINE") {
@@ -139,8 +131,54 @@ function Update-OrgFolders {
             New-Item -ItemType Directory -Path $localOrgsRoot | Out-Null
             Write-Debug "Created root orgs folder: $localOrgsRoot"
         }
-        # Recursively replicate folders from the API root.
-        Replicate-Folder -remotePath $apiRoot -localParent $localOrgsRoot -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath
+        # Get the top-level directories under the API root.
+        $orgsRemote = Get-GitHubRepoFolders -owner $owner -repo $repo -token $token -path $apiRoot
+        if ($orgsRemote) {
+            foreach ($org in $orgsRemote | Where-Object { $_.type -eq "dir" }) {
+                $orgRemotePath = Join-Path $apiRoot $org.name
+                # Check if the remote org folder contains a submenu.txt file.
+                $orgContents = Get-GitHubRepoFolders -owner $owner -repo $repo -token $token -path $orgRemotePath
+                if ($orgContents -and ($orgContents | Where-Object { $_.type -eq "file" -and $_.name -ieq "submenu.txt" })) {
+                    $localOrgFolder = Join-Path $localOrgsRoot $org.name
+                    if (-not (Test-Path $localOrgFolder)) {
+                        New-Item -ItemType Directory -Path $localOrgFolder | Out-Null
+                        Write-Host "Created org folder: $localOrgFolder" -ForegroundColor Green
+                        if ($primaryLogFilePath) {
+                            Write-Log -message "Created org folder: $localOrgFolder" -logFilePath $primaryLogFilePath
+                        }
+                    }
+                    # Download submenu.txt for the org folder first.
+                    $localSubmenu = Join-Path $localOrgFolder "submenu.txt"
+                    $submenuRemote = $orgContents | Where-Object { $_.type -eq "file" -and $_.name -ieq "submenu.txt" } | Select-Object -First 1
+                    if ($submenuRemote -and -not (Test-Path $localSubmenu)) {
+                        Write-Host "Downloading submenu.txt for org folder $orgRemotePath" -ForegroundColor Cyan
+                        if ($primaryLogFilePath) {
+                            Write-Log -message "Downloading submenu.txt for org folder $orgRemotePath" -logFilePath $primaryLogFilePath
+                        }
+                        try {
+                            Invoke-WebRequest -Uri $submenuRemote.download_url -OutFile $localSubmenu -UseBasicParsing
+                        }
+                        catch {
+                            Write-Error "Failed to download submenu.txt for org folder $orgRemotePath: $_"
+                        }
+                    }
+                    # Now replicate any subfolders recursively.
+                    Replicate-Folder -remotePath $orgRemotePath -localParent $localOrgFolder -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath
+                }
+                else {
+                    Write-Host "Skipping org folder '$($org.name)' because submenu.txt was not found." -ForegroundColor Yellow
+                    if ($primaryLogFilePath) {
+                        Write-Log -message "Skipping org folder '$($org.name)' because submenu.txt was not found." -logFilePath $primaryLogFilePath
+                    }
+                }
+            }
+        }
+        else {
+            Write-Host "No organization folders retrieved from GitHub." -ForegroundColor Yellow
+            if ($primaryLogFilePath) {
+                Write-Log -message "No organization folders retrieved from GitHub." -logFilePath $primaryLogFilePath
+            }
+        }
     }
     Write-Debug "Exiting Update-OrgFolders."
 }
@@ -148,19 +186,13 @@ function Update-OrgFolders {
 function Sync-OrgFolderContents {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)]
-        [string]$workingDir,
+        [Parameter(Mandatory = $true)][string]$workingDir,
         # Relative path within the orgs folder (e.g. "MyOrg\SubFolder")
-        [Parameter(Mandatory = $true)]
-        [string]$orgRelativePath,
-        [Parameter(Mandatory = $true)]
-        [string]$owner,
-        [Parameter(Mandatory = $true)]
-        [string]$repo,
-        [Parameter(Mandatory = $true)]
-        [string]$token,
-        [Parameter(Mandatory = $false)]
-        [string]$primaryLogFilePath
+        [Parameter(Mandatory = $true)][string]$orgRelativePath,
+        [Parameter(Mandatory = $true)][string]$owner,
+        [Parameter(Mandatory = $true)][string]$repo,
+        [Parameter(Mandatory = $true)][string]$token,
+        [Parameter(Mandatory = $false)][string]$primaryLogFilePath
     )
     Write-Debug "Syncing contents for org folder: $orgRelativePath"
     $apiRoot = "Poly.PKit\Orgs"
@@ -182,7 +214,7 @@ function Sync-OrgFolderContents {
         Write-Error "Local folder $localFolder does not exist. Cannot sync."
         return
     }
-    # Gather remote files and order them so that submenu.txt is handled first.
+    # Order remote files so that submenu.txt is handled first.
     $files = $contents | Where-Object { $_.type -eq "file" }
     $orderedFiles = @()
     if ($files) {

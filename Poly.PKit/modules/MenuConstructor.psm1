@@ -55,7 +55,7 @@ function Get-Submenu {
             if ($line -match "^(.*?)\s*\|\s*(.+)$") {
                 $title = $matches[1].Trim()
                 $actionPart = $matches[2].Trim()
-                if ($actionPart -match "^(MANIFEST|SCRIPT|DO)\s*=\s*\((.+)\)$") {
+                if ($actionPart -match "^(MANIFEST|SCRIPT|DO|ONBOARD)\s*=\s*\((.+)\)$") {
                     $actionType    = $matches[1].Trim()
                     $actionContent = $matches[2].Trim()
                     $submenuItems += [PSCustomObject]@{
@@ -333,13 +333,13 @@ function Show-MainMenuLoop {
         # process the item
         switch ($selectedSubmenuItem.ActionType.ToUpper()) {
             "MANIFEST" {
-                Process-Manifest -companyName $chosen -manifestUrl $selectedSubmenuItem.ActionContent
+                Invoke-Manifest -companyName $chosen -manifestUrl $selectedSubmenuItem.ActionContent
             }
             "SCRIPT" {
-                Process-Script -scriptUrl $selectedSubmenuItem.ActionContent
+                Invoke-Script -scriptUrl $selectedSubmenuItem.ActionContent
             }
             "DO" {
-                Process-DO -command $selectedSubmenuItem.ActionContent
+                Invoke-DO -command $selectedSubmenuItem.ActionContent
             }
             "ONBOARD" {
                 $appsjson = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/orgs/$chosen/apps.json"

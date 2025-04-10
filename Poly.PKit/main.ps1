@@ -196,6 +196,9 @@ else {
     }
 }
 
-#------------------------------------------------------------------
-# End of main.ps1 (ONLINE mode)
-#------------------------------------------------------------------
+Start-Sleep -Seconds 1
+Clear-Host
+Import-Module MenuConstructor.psm1 -Force
+
+# Call the main menu loop:
+Show-MainMenuLoop -workingDir $workingDir

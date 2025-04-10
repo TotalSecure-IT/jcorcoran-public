@@ -5,8 +5,6 @@
 #
 # Export a single function: Invoke-Onboard
 
-Export-ModuleMember -Function Invoke-Onboard
-
 $Global:BannerBlankLines = 3  # number of empty lines to insert after banner
 
 function Invoke-Onboard {
@@ -80,4 +78,4 @@ function Invoke-Onboard {
     Write-Host "winget install finished. Press any key to continue..."
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
-
+Export-ModuleMember -Function Invoke-Onboard

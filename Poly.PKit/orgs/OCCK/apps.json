@@ -1,194 +1,22 @@
 {
 	"$schema" : "https://aka.ms/winget-packages.schema.2.0.json",
-	"CreationDate" : "2025-04-01T10:50:31.590-00:00",
+	"CreationDate" : "2025-04-01T11:10:03.609-00:00",
 	"Sources" : 
 	[
 		{
 			"Packages" : 
 			[
 				{
-					"PackageIdentifier" : "7zip.7zip",
-					"Version" : "24.09"
+					"PackageIdentifier" : "Mozilla.Firefox"
 				},
 				{
-					"PackageIdentifier" : "Git.Git",
-					"Version" : "2.49.0"
+					"PackageIdentifier" : "Google.Chrome"
 				},
 				{
-					"PackageIdentifier" : "Mozilla.Firefox",
-					"Version" : "137.0"
+					"PackageIdentifier" : "Adobe.Acrobat.Reader.64-bit"
 				},
 				{
-					"PackageIdentifier" : "Microsoft.Office",
-					"Version" : "16.0.18526.20168"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.OneDrive",
-					"Version" : "25.041.0303.0002"
-				},
-				{
-					"PackageIdentifier" : "JAMSoftware.TreeSize.Free",
-					"Version" : "4.7.3"
-				},
-				{
-					"PackageIdentifier" : "VideoLAN.VLC",
-					"Version" : "3.0.21"
-				},
-				{
-					"PackageIdentifier" : "Resplendence.WhoCrashed",
-					"Version" : "7.06"
-				},
-				{
-					"PackageIdentifier" : "Google.Chrome",
-					"Version" : "134.0.6998.178"
-				},
-				{
-					"PackageIdentifier" : "PuTTY.PuTTY",
-					"Version" : "0.78.0.0"
-				},
-				{
-					"PackageIdentifier" : "ColonyLabs.ScribeDesktopCapture",
-					"Version" : "2.0.6"
-				},
-				{
-					"PackageIdentifier" : "SonicWALL.NetExtender",
-					"Version" : "10.3.1"
-				},
-				{
-					"PackageIdentifier" : "Zoom.Zoom",
-					"Version" : "6.4.63669"
-				},
-				{
-					"PackageIdentifier" : "Veeam.VeeamAgent",
-					"Version" : "6.3.1.1074"
-				},
-				{
-					"PackageIdentifier" : "Kaseya.LiveConnect",
-					"Version" : "9.5.8908.10196"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.PowerShell",
-					"Version" : "7.5.0.0"
-				},
-				{
-					"PackageIdentifier" : "Brave.Brave",
-					"Version" : "134.1.76.82"
-				},
-				{
-					"PackageIdentifier" : "GnuPG.GnuPG",
-					"Version" : "2.4.7"
-				},
-				{
-					"PackageIdentifier" : "GnuPG.Gpg4win",
-					"Version" : "4.4.0"
-				},
-				{
-					"PackageIdentifier" : "OBSProject.OBSStudio",
-					"Version" : "31.0.2"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.VisualStudio.2022.Professional",
-					"Version" : "17.13.5"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.DotNet.DesktopRuntime.6",
-					"Version" : "6.0.36"
-				},
-				{
-					"PackageIdentifier" : "Python.Launcher",
-					"Version" : "3.12.0"
-				},
-				{
-					"PackageIdentifier" : "Win32diskimager.win32diskimager",
-					"Version" : "1.0.0"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.PowerAutomateDesktop",
-					"Version" : "2.54.188.25066"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.WindowsSDK.10.0.20348",
-					"Version" : "10.1.20348.1"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.Edge",
-					"Version" : "134.0.3124.93"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.VCRedist.2013.x86",
-					"Version" : "12.0.40664.0"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.UpdateAssistant",
-					"Version" : "1.4.19041.2183"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.VCRedist.2015+.x64",
-					"Version" : "14.42.34438.0"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.VCRedist.2015+.x86",
-					"Version" : "14.42.34438.0"
-				},
-				{
-					"PackageIdentifier" : "GitHub.GitHubDesktop",
-					"Version" : "3.4.18"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.SupportAndRecoveryAssistant",
-					"Version" : "17.1.1659.0"
-				},
-				{
-					"PackageIdentifier" : "GoTo.GoTo",
-					"Version" : "4.13.0"
-				},
-				{
-					"PackageIdentifier" : "Balena.Etcher",
-					"Version" : "2.1.0"
-				},
-				{
-					"PackageIdentifier" : "Python.Python.3.11",
-					"Version" : "3.11.5"
-				},
-				{
-					"PackageIdentifier" : "Lenovo.ServiceBridge",
-					"Version" : "5.0.2.17"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.VisualStudioCode",
-					"Version" : "1.98.2"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.Teams",
-					"Version" : "25044.2208.3471.2155"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.AppInstaller",
-					"Version" : "1.25.340.0"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.UI.Xaml.2.7",
-					"Version" : "7.2409.9001.0"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.UI.Xaml.2.8",
-					"Version" : "8.2501.31001.0"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.VCLibs.Desktop.14",
-					"Version" : "14.0.33728.0"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.DevHome",
-					"Version" : "0.2001.758.0"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.WindowsTerminal",
-					"Version" : "1.22.10731.0"
-				},
-				{
-					"PackageIdentifier" : "Microsoft.Teams.Free",
-					"Version" : "25059.1703.3489.334"
+					"PackageIdentifier" : "Microsoft.Teams"
 				}
 			],
 			"SourceDetails" : 

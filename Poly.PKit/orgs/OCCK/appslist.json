@@ -16,10 +16,6 @@
 					"PackageIdentifier" : "Adobe.Acrobat.Reader.64-bit"
 				},
 				{
-					"PackageIdentifier" : "SonicWALL.NetExtender",
-					"Version" : "10.2.341"
-				},
-				{
 					"PackageIdentifier" : "Microsoft.Teams"
 				}
 			],

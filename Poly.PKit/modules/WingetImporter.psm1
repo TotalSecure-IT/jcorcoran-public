@@ -4,7 +4,6 @@
 # presents pinned banner, then runs winget to install from local apps.json.
 
 # We'll have a single exported function:
-Export-ModuleMember -Function Invoke-Onboard
 
 $Global:BannerBlankLines = 3  # number of empty lines below the banner
 
@@ -173,3 +172,5 @@ function Invoke-Onboard {
     Write-Host "Press any key to continue..."
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
+
+Export-ModuleMember -Function Invoke-Onboard

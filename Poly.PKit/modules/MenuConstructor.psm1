@@ -164,7 +164,7 @@ function Show-Submenu {
 # The three snippet-based action processors: MANIFEST, SCRIPT, DO
 # ------------------------------------------------------------
 
-function Process-Manifest {
+function Invoke-Manifest {
     param(
         [string]$companyName,
         [string]$manifestUrl
@@ -241,7 +241,7 @@ function Process-Manifest {
     }
 }
 
-function Process-Script {
+function Invoke-Script {
     param(
         [string]$scriptUrl
     )
@@ -258,7 +258,7 @@ function Process-Script {
     }
 }
 
-function Process-DO {
+function Invoke-DO {
     param(
         [string]$command
     )
@@ -333,13 +333,13 @@ function Show-MainMenuLoop {
         # process the item
         switch ($selectedSubmenuItem.ActionType.ToUpper()) {
             "MANIFEST" {
-                Process-Manifest -companyName $chosen -manifestUrl $selectedSubmenuItem.ActionContent
+                Invoke-Manifest -companyName $chosen -manifestUrl $selectedSubmenuItem.ActionContent
             }
             "SCRIPT" {
-                Process-Script -scriptUrl $selectedSubmenuItem.ActionContent
+                Invoke-Script -scriptUrl $selectedSubmenuItem.ActionContent
             }
             "DO" {
-                Process-DO -command $selectedSubmenuItem.ActionContent
+                Invoke-DO -command $selectedSubmenuItem.ActionContent
             }
             default {
                 Write-Host "No action defined for this submenu item. Returning to main menu." -ForegroundColor Yellow
@@ -353,4 +353,4 @@ function Show-MainMenuLoop {
 }
 
 Export-ModuleMember -Function `
-    Get-Submenu, Show-Submenu, Process-Manifest, Process-Script, Process-DO, Show-MainMenuLoop
+    Get-Submenu, Show-Submenu, Invoke-Manifest, Invoke-Script, Invoke-DO, Show-MainMenuLoop

@@ -127,7 +127,7 @@ function Replicate-OrgsFolderStructure {
             $subTreeData = ConvertFrom-Json $subResponse.Content
         }
         catch {
-            Write-Error "Failed to retrieve subfolder tree for $subName: $_"
+            Write-Error "Failed to retrieve subfolder tree for $subName $_"
             continue
         }
         if ($subTreeData -and $subTreeData.tree) {

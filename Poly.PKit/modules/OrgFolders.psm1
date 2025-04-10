@@ -1,17 +1,32 @@
+# Simple counters to track discovered/skipped folders and discovered menu files.
+$global:OrgFoldersDiscovered  = 0
+$global:OrgFoldersSkipped     = 0
+$global:MenuFilesDiscovered   = 0
+
+function Refresh-LiveStats {
+    Clear-Host
+    Write-Host "Organization Folders discovered: " -NoNewline -ForegroundColor White
+    Write-Host $global:OrgFoldersDiscovered -ForegroundColor Green
+
+    Write-Host "Menu files discovered: " -NoNewline -ForegroundColor White
+    Write-Host $global:MenuFilesDiscovered -ForegroundColor Green
+
+    Write-Host "Organization Folders skipped: " -NoNewline -ForegroundColor White
+    Write-Host $global:OrgFoldersSkipped -ForegroundColor Green
+}
+
 function Get-OrgsFolderTree {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)][string]$owner,
         [Parameter(Mandatory=$true)][string]$repo,
         [Parameter(Mandatory=$true)][string]$token,
-        [Parameter(Mandatory=$true)][string]$orgsFolderSha,
-        [Parameter(Mandatory=$false)][string]$primaryLogFilePath,
-        [string]$jsonLogFilePath = $Global:JsonLogFilePath
+        [Parameter(Mandatory=$true)][string]$orgsFolderSha
     )
     <#
-      Retrieves the top-level Orgs folder tree from a known tree SHA (e.g. "8b8cde2fe87d2155653ddbdaa7530e01b84047bf").
-      Each item in the returned array includes: { path, mode, type=tree/blob, sha, url }.
-      We'll just use 'path' (subfolder name) and 'type=tree' to build local folders.
+      Retrieves the top-level Orgs folder items from a known tree SHA,
+      e.g. "8b8cde2fe87d2155653ddbdaa7530e01b84047bf".
+      We'll only use items with type=tree for subfolders.
     #>
 
     $headers = @{
@@ -19,26 +34,19 @@ function Get-OrgsFolderTree {
         Accept        = "application/vnd.github+json"
     }
     $url = "https://api.github.com/repos/$owner/$repo/git/trees/$orgsFolderSha"
-    
-    if ($jsonLogFilePath) {
-        Write-JsonDebug -message "Fetching Orgs folder tree from: $url" -jsonLogFilePath $jsonLogFilePath
-    }
     try {
         $response = Invoke-WebRequest -Uri $url -Headers $headers -Method GET -ErrorAction Stop
-        $treeData = ConvertFrom-Json $response.Content
+        $treeData = $response.Content | ConvertFrom-Json
         if ($treeData -and $treeData.tree) {
             return $treeData.tree
         }
         else {
-            Write-Error "Tree data not found or empty for Orgs folder SHA: $orgsFolderSha"
+            Write-Error "No items found for Orgs folder SHA: $orgsFolderSha"
             return $null
         }
     }
     catch {
         Write-Error "Failed to retrieve Orgs folder tree: $_"
-        if ($jsonLogFilePath) {
-            Write-JsonDebug -message "Failed to retrieve Orgs folder tree: $_" -jsonLogFilePath $jsonLogFilePath
-        }
         return $null
     }
 }
@@ -52,76 +60,62 @@ function Update-OrgFolders {
         [Parameter(Mandatory=$true)][string]$repo,
         [Parameter(Mandatory=$true)][string]$token,
         [Parameter(Mandatory=$true)][string]$orgsFolderSha, # e.g. "8b8cde2fe87d2155653ddbdaa7530e01b84047bf"
-        [Parameter(Mandatory=$false)][string]$primaryLogFilePath,
-        [string]$jsonLogFilePath = $Global:JsonLogFilePath
+        [Parameter(Mandatory=$false)][string]$primaryLogFilePath
     )
-    <#
-      1) Retrieves the subfolders of Orgs from orgsFolderSha
-      2) Creates each subfolder locally
-      3) Attempts to download submenu.txt from:
-         "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/Orgs/{subfolder}/submenu.txt"
-         If it fails (404), we skip that submenu.
-    #>
+    if ($mode -ne "ONLINE") {
+        Write-Host "CACHED mode not implemented. Exiting..."
+        return
+    }
 
-    Write-Debug "Entering Update-OrgFolders with mode: $mode"
-    if ($mode -eq "ONLINE") {
-        Write-Host "Using orgsFolderSha='$orgsFolderSha' to replicate subfolders..."
-        $orgsItems = Get-OrgsFolderTree -owner $owner -repo $repo -token $token -orgsFolderSha $orgsFolderSha -primaryLogFilePath $primaryLogFilePath -jsonLogFilePath $jsonLogFilePath
-        if (-not $orgsItems) {
-            Write-Error "No subfolders found under Orgs. Exiting..."
-            return
-        }
+    Write-Host "Using orgsFolderSha='$orgsFolderSha' to replicate subfolders..."
+    Refresh-LiveStats
 
-        # Ensure local 'orgs' folder
-        $orgsRoot = Join-Path $workingDir "orgs"
-        if (-not (Test-Path $orgsRoot)) {
-            New-Item -ItemType Directory -Path $orgsRoot | Out-Null
-            Write-Debug "Created root orgs folder: $orgsRoot"
-        }
+    # 1) Get top-level Orgs folder items
+    $orgsItems = Get-OrgsFolderTree -owner $owner -repo $repo -token $token -orgsFolderSha $orgsFolderSha
+    if (-not $orgsItems) {
+        Write-Error "No subfolders found under Orgs. Exiting..."
+        return
+    }
 
-        # For each subfolder tree item, create local folder, then attempt to download submenu.txt
-        foreach ($item in $orgsItems) {
-            if ($item.type -eq "tree") {
-                # item.path might be e.g. "Brethren-Mutual"
-                $subLocalFolder = Join-Path $orgsRoot $item.path
-                if (-not (Test-Path $subLocalFolder)) {
-                    New-Item -ItemType Directory -Path $subLocalFolder | Out-Null
-                    Write-Host "Created local org folder: $subLocalFolder" -ForegroundColor Green
-                    if ($primaryLogFilePath) {
-                        Write-Log -message "Created local org folder: $subLocalFolder" -logFilePath $primaryLogFilePath
-                    }
-                }
-                else {
-                    Write-Debug "Local org folder already exists: $subLocalFolder"
-                }
+    # Ensure the local "orgs" folder exists
+    $orgsRoot = Join-Path $workingDir "orgs"
+    if (-not (Test-Path $orgsRoot)) {
+        New-Item -ItemType Directory -Path $orgsRoot | Out-Null
+    }
 
-                # Attempt to download submenu.txt from raw GitHub URL
+    # 2) For each subfolder, create a local folder if missing, else skip
+    foreach ($item in $orgsItems) {
+        if ($item.type -eq "tree") {
+            $subLocalFolder = Join-Path $orgsRoot $item.path
+            if (-not (Test-Path $subLocalFolder)) {
+                # Discovered a new folder
+                $global:OrgFoldersDiscovered++
+                Refresh-LiveStats
+
+                New-Item -ItemType Directory -Path $subLocalFolder | Out-Null
+            }
+            else {
+                # We skip if folder already exists
+                $global:OrgFoldersSkipped++
+                Refresh-LiveStats
+            }
+
+            # 3) Attempt to download submenu.txt from raw GitHub if missing
+            $localSubmenu = Join-Path $subLocalFolder "submenu.txt"
+            if (-not (Test-Path $localSubmenu)) {
                 $rawSubmenuUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/Orgs/$($item.path)/submenu.txt"
-                $localSubmenu = Join-Path $subLocalFolder "submenu.txt"
-                if (-not (Test-Path $localSubmenu)) {
-                    Write-Host "Attempting to download $rawSubmenuUrl" -ForegroundColor Cyan
-                    try {
-                        Invoke-WebRequest -Uri $rawSubmenuUrl -OutFile $localSubmenu -UseBasicParsing -ErrorAction Stop
-                        Write-Debug "submenu.txt saved to $localSubmenu"
-                        if ($primaryLogFilePath) {
-                            Write-Log -message "submenu.txt downloaded for subfolder '$($item.path)'" -logFilePath $primaryLogFilePath
-                        }
-                    }
-                    catch {
-                        # Probably 404, so we skip
-                        Write-Debug "No submenu.txt found at $rawSubmenuUrl. Skipping."
-                    }
+                try {
+                    Invoke-WebRequest -Uri $rawSubmenuUrl -OutFile $localSubmenu -UseBasicParsing -ErrorAction Stop
+                    $global:MenuFilesDiscovered++
+                    Refresh-LiveStats
                 }
-                else {
-                    Write-Debug "submenu.txt already exists locally for $($item.path)"
+                catch {
+                    # If 404 or other error, we ignore
                 }
             }
         }
+        # We ignore items of type=blob, etc.
     }
-    else {
-        Write-Debug "CACHED mode not implemented here."
-    }
-    Write-Debug "Exiting Update-OrgFolders."
 }
 
 function Sync-OrgFolderContents {
@@ -131,12 +125,9 @@ function Sync-OrgFolderContents {
         [Parameter(Mandatory=$true)][string]$orgRelativePath,
         [Parameter(Mandatory=$true)][string]$owner,
         [Parameter(Mandatory=$true)][string]$repo,
-        [Parameter(Mandatory=$true)][string]$token,
-        [Parameter(Mandatory=$false)][string]$primaryLogFilePath,
-        [string]$jsonLogFilePath = $Global:JsonLogFilePath
+        [Parameter(Mandatory=$true)][string]$token
     )
-    Write-Host "Sync-OrgFolderContents is not fully implemented in this snippet."
+    Write-Host "Sync-OrgFolderContents is not implemented here."
 }
 
-
-Export-ModuleMember -Function Get-OrgsFolderTree, Update-OrgFolders, Sync-OrgFolderContents
+Export-ModuleMember -Function Update-OrgFolders, Sync-OrgFolderContents

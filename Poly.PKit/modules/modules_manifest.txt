@@ -2,3 +2,4 @@ ConfigLoader.psm1
 logger.psm1
 OrgFolders.psm1
 MenuConstructor.psm1
+WingetImporter.psm1

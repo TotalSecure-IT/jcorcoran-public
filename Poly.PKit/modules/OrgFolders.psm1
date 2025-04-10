@@ -77,9 +77,9 @@ function Get-SubfolderTree {
         }
     }
     catch {
-        Write-Error "Failed to retrieve subfolder tree for SHA $subfolderSha: $_"
+        Write-Error "Failed to retrieve subfolder tree for SHA $subfolderSha $_"
         if ($jsonLogFilePath) {
-            Write-JsonDebug -message "Failed to retrieve subfolder tree for SHA $subfolderSha: $_" -jsonLogFilePath $jsonLogFilePath
+            Write-JsonDebug -message "Failed to retrieve subfolder tree for SHA $subfolderSha $_" -jsonLogFilePath $jsonLogFilePath
         }
         return $null
     }
@@ -121,7 +121,7 @@ function Get-BlobContentBase64 {
         }
     }
     catch {
-        Write-Error "Failed to retrieve blob for SHA $blobSha: $_"
+        Write-Error "Failed to retrieve blob for SHA $blobSha $_"
         return $null
     }
 }

@@ -56,7 +56,7 @@ function Get-Submenu {
                 $title = $matches[1].Trim()
                 $actionPart = $matches[2].Trim()
                 Write-Host "Line: '$line'"
-                if ($actionPart -match "^\\s*(?i)(MANIFEST|SCRIPT|DO|ONBOARD)\\s*=\\s*\\((.*)\\)$") {
+                if ($actionPart -match '^\\s*(?i)(MANIFEST|SCRIPT|DO|ONBOARD)\\s*=\\s*\\((.*)\\)$') {
                     Write-Host "Matched ONBOARD pattern!"
                     $actionType    = $matches[1].Trim()
                     $actionContent = $matches[2].Trim()

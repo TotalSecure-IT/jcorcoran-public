@@ -55,9 +55,7 @@ function Get-Submenu {
             if ($line -match "^(.*?)\s*\|\s*(.+)$") {
                 $title = $matches[1].Trim()
                 $actionPart = $matches[2].Trim()
-                Write-Host "Line: '$line'"
                 if ($actionPart -match "^(?i)\s*(MANIFEST|SCRIPT|DO|ONBOARD)\s*=\s*\((.*)\)$") {
-                    Write-Host "Matched ONBOARD pattern!"
                     $actionType    = $matches[1].Trim()
                     $actionContent = $matches[2].Trim()
                     $submenuItems += [PSCustomObject]@{
@@ -68,7 +66,6 @@ function Get-Submenu {
                 }
                 else {
                     # If format not recognized, still store title
-                    Write-Host "Regex didn't match this line for an action..."
                     $submenuItems += [PSCustomObject]@{
                         Title         = $title
                         ActionType    = ""

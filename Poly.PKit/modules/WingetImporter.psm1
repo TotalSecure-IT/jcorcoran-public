@@ -107,7 +107,7 @@ function Invoke-Onboard {
 
     # 5) Now we call winget to install from local apps.json
     # We'll intercept winget's output and keep re-drawing the banner region
-    $wingetCommand = "winget -i `"$appsJsonLocal`" --accept-package-agreements --accept-source-agreements --disable-interactivity"
+    $wingetCommand = "winget import `"$appsJsonLocal`" --accept-package-agreements --accept-source-agreements --disable-interactivity"
 
     Write-Host "Starting winget install using: $wingetCommand" -ForegroundColor Green
 

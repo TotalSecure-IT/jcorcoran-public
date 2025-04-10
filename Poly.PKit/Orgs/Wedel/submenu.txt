@@ -1,1 +1,54 @@
-test
+   "path": "Wedel",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "0b967bd926a8657a564d783449b4f44d17d4847d",
+      "url": "https://api.github.com/repos/TotalSecure-IT/jcorcoran-public/git/trees/0b967bd926a8657a564d783449b4f44d17d4847d"
+    }
+  ],
+  "truncated": false
+}
+PS D:\test> curl -H "Accept: application/vnd.github+json" `
+>> https://api.github.com/repos/TotalSecure-IT/jcorcoran-public/git/trees/0b967bd926a8657a564d783449b4f44d17d4847d
+{
+  "sha": "0b967bd926a8657a564d783449b4f44d17d4847d",
+  "url": "https://api.github.com/repos/TotalSecure-IT/jcorcoran-public/git/trees/0b967bd926a8657a564d783449b4f44d17d4847d",
+  "tree": [
+    {
+      "path": "submenu.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/TotalSecure-IT/jcorcoran-public/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    }
+  ],
+  "truncated": false
+}
+PS D:\test> curl -H "Accept: application/vnd.github+json" `
+>> https://api.github.com/repos/TotalSecure-IT/jcorcoran-public/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+{
+  "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+  "node_id": "B_kwDOOLXvsdoAKGU2OWRlMjliYjJkMWQ2NDM0YjhiMjlhZTc3NWFkOGMyZTQ4YzUzOTE",
+  "size": 0,
+  "url": "https://api.github.com/repos/TotalSecure-IT/jcorcoran-public/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+  "content": "",
+  "encoding": "base64"
+}
+PS D:\test> curl -H "Accept: application/vnd.github+json" `
+>> >> https://api.github.com/repos/TotalSecure-IT/jcorcoran-public/git/trees/0b967bd926a8657a564d783449b4f44d17d4847d
+ObjectNotFound: Cannot find drive. A drive with the name 'https' does not exist.
+PS D:\test> curl -H "Accept: application/vnd.github+json" `https://api.github.com/repos/TotalSecure-IT/jcorcoran-public/git/trees/0b967bd926a8657a564d783449b4f44d17d4847d
+{
+  "sha": "0b967bd926a8657a564d783449b4f44d17d4847d",
+  "url": "https://api.github.com/repos/TotalSecure-IT/jcorcoran-public/git/trees/0b967bd926a8657a564d783449b4f44d17d4847d",
+  "tree": [
+    {
+      "path": "submenu.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/TotalSecure-IT/jcorcoran-public/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    }
+  ],
+  "truncated": false

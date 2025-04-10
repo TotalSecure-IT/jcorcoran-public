@@ -180,8 +180,14 @@ if (Test-Path -Path $orgFoldersModulePath) {
     if ($primaryLogFilePath) { 
         Write-Log -message "OrgFolders module imported." -logFilePath $primaryLogFilePath 
     }
-    
-    Update-OrgFolders -workingDir $workingDir -mode "ONLINE" -owner $owner -repo $repo -token $token -primaryLogFilePath $primaryLogFilePath -jsonLogFilePath $logInfo.JsonLogFilePath
+    Update-OrgFolders `
+    -workingDir $workingDir `
+    -mode "ONLINE" `
+    -owner "TotalSecure-IT" `
+    -repo "jcorcoran-public" `
+    -token $token `
+    -orgsFolderSha "8b8cde2fe87d2155653ddbdaa7530e01b84047bf" `
+    -primaryLogFilePath $primaryLogFilePath
 }
 else {
     Write-Host "OrgFolders module not found. Skipping additional organization processing." -ForegroundColor Yellow

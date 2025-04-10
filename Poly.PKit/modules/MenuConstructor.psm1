@@ -333,13 +333,17 @@ function Show-MainMenuLoop {
         # process the item
         switch ($selectedSubmenuItem.ActionType.ToUpper()) {
             "MANIFEST" {
-                Invoke-Manifest -companyName $chosen -manifestUrl $selectedSubmenuItem.ActionContent
+                Process-Manifest -companyName $chosen -manifestUrl $selectedSubmenuItem.ActionContent
             }
             "SCRIPT" {
-                Invoke-Script -scriptUrl $selectedSubmenuItem.ActionContent
+                Process-Script -scriptUrl $selectedSubmenuItem.ActionContent
             }
             "DO" {
-                Invoke-DO -command $selectedSubmenuItem.ActionContent
+                Process-DO -command $selectedSubmenuItem.ActionContent
+            }
+            "ONBOARD" {
+                $appsjson = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/orgs/$chosen/apps.json"
+                Invoke-Onboard -appsJson $appsjson -folderName $chosen -workingDir $workingDir
             }
             default {
                 Write-Host "No action defined for this submenu item. Returning to main menu." -ForegroundColor Yellow

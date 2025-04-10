@@ -69,7 +69,6 @@ function Get-Submenu {
                 else {
                     # If format not recognized, still store title
                     Write-Host "Regex didn't match this line for an action..."
-                    Write-Host "We tried to foolishly use: '$actionpart'"
                     $submenuItems += [PSCustomObject]@{
                         Title         = $title
                         ActionType    = ""

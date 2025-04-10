@@ -81,6 +81,26 @@ else {
 
 # OrgFolders Module
 $orgFoldersModulePath = Join-Path $modulesFolder "OrgFolders.psm1"
+if (Test-Path -Path $orgFoldersModulePath) {
+    Import-Module $orgFoldersModulePath -Force
+}
+else {
+    Write-Host "OrgFolders module not available. Exiting." -ForegroundColor Yellow
+    Read-Host "Press Enter to exit..."
+    exit 1
+}
+
+# MenuConstructor Module
+$menuConstructorModulePath = Join-Path $modulesFolder "MenuConstructor.psm1"
+if (Test-Path -Path $menuConstructorModulePath) {
+    Import-Module $menuConstructorModulePath -Force
+}
+else {
+    Write-Host "MenuConstructor module not available. Exiting." -ForegroundColor Yellow
+    Read-Host "Press Enter to exit..."
+    exit 1
+}
+
 
 #------------------------------------------------------------------
 # Logging Initialization
@@ -198,7 +218,6 @@ else {
 
 Start-Sleep -Seconds 1
 Clear-Host
-Import-Module MenuConstructor.psm1 -Force
 
 # Call the main menu loop:
 Show-MainMenuLoop -workingDir $workingDir

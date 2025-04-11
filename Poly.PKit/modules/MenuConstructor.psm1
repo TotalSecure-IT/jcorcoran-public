@@ -55,7 +55,7 @@ function Get-Submenu {
             if ($line -match "^(.*?)\s*\|\s*(.+)$") {
                 $title = $matches[1].Trim()
                 $actionPart = $matches[2].Trim()
-                if ($actionPart -match "^(?i)\s*(MANIFEST|SCRIPT|DO|ONBOARD)\s*=\s*\((.*)\)$") {
+                if ($actionPart -match "^(?i)\s*(MANIFEST|SCRIPT|DO)\s*=\s*\((.*)\)$") {
                     $actionType    = $matches[1].Trim()
                     $actionContent = $matches[2].Trim()
                     $submenuItems += [PSCustomObject]@{
@@ -340,10 +340,6 @@ function Show-MainMenuLoop {
             }
             "DO" {
                 Invoke-DO -command $selectedSubmenuItem.ActionContent
-            }
-            "ONBOARD" {
-                $appsjson = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/orgs/$chosen/apps.json"
-                Invoke-Onboard -appsJson $appsjson -folderName $chosen -workingDir $workingDir
             }
             default {
                 Write-Host "No action defined for this submenu item. Returning to main menu." -ForegroundColor Yellow

@@ -101,17 +101,6 @@ else {
     exit 1
 }
 
-# WingetImporter Module
-$wingetImporterModulePath = Join-Path $modulesFolder "WingetImporter.psm1"
-if (Test-Path -Path $wingetImporterModulePath) {
-    Import-Module $wingetImporterModulePath -Force
-}
-else {
-    Write-Host "WingetImporter module not available. Exiting." -ForegroundColor Yellow
-    Read-Host "Press Enter to exit..."
-    exit 1
-}
-
 #------------------------------------------------------------------
 # Logging Initialization
 #------------------------------------------------------------------

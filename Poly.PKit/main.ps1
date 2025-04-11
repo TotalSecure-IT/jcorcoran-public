@@ -101,15 +101,13 @@ else {
     exit 1
 }
 
-# Onboarding Module
-$menuConstructorModulePath = Join-Path $modulesFolder "Onboarding.psm1"
-if (Test-Path -Path $menuConstructorModulePath) {
-    Import-Module $menuConstructorModulePath -Force
+# Onboarding Module (we simulate the importing of the Onboarding module purely for verbosity as it is called manually in submenu.txt files via Menuconstructor.psm1 | Start-Onboarding -CompanyIni $PSScriptRoot\configs\$companyName\config.ini)
+$onboardingModulePath = Join-Path $modulesFolder "Onboarding.psm1"
+if (Test-Path $onboardingModulePath) {
+    Import-Module $onboardingModulePath -Force
 }
 else {
-    Write-Host "Onboarding module not available. Exiting." -ForegroundColor Yellow
-    Read-Host "Press Enter to exit..."
-    exit 1
+    Write-Host "Onboarding.psm1 not found. Onboarding functionality will be unavailable." -ForegroundColor Yellow
 }
 
 #------------------------------------------------------------------

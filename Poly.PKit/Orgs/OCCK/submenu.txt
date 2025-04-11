@@ -1,4 +1,4 @@
-Deployment Script | ONBOARD = ()
+Deployment Script | DO = (Start-Onboarding -CompanyIni $PSScriptRoot\configs\$companyName\config.ini)
 Install Sophos | MANIFEST = (https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/random-company/sophosmanifest.txt)
 Launch Script | SCRIPT = (https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Universal/random-company/deploy.ps1)
 Perform Action | DO = (Get-Date -DisplayHint Time)

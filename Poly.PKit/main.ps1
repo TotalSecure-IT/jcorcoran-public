@@ -11,7 +11,11 @@ Clear-Host
 #------------------------------------------------------------------
 # Set Working Directories
 #------------------------------------------------------------------
+if (-not $PSScriptRoot) {
+    $PSScriptRoot = Get-Location
+}
 $workingDir = Split-Path -Parent $PSScriptRoot
+
 Set-Location $workingDir
 
 # init folder is where main.ps1 resides.

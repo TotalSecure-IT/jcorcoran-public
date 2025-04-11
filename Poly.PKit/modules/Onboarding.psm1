@@ -439,10 +439,18 @@ function Start-Onboarding {
     )
     try {
         $global:ScriptStart = Get-Date
+
         Write-Log "Parsing configuration file: $CompanyIni"
         $config = Convert-IniToHashtable -Path $CompanyIni
+
+        # Derive WorkingDir from the CompanyIni file path.
         $configsDir = Split-Path $CompanyIni -Parent
         $global:WorkingDir = Split-Path $configsDir -Parent
+
+        # Fallback if $global:WorkingDir is empty.
+        if ([string]::IsNullOrEmpty($global:WorkingDir)) {
+            $global:WorkingDir = Get-Location
+        }
         Write-Log "Working Directory determined: $global:WorkingDir"
         $logsDir = Join-Path $global:WorkingDir "logs"
         if (-not (Test-Path $logsDir)) { New-Item -ItemType Directory -Path $logsDir | Out-Null }

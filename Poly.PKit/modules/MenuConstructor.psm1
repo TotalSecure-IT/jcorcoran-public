@@ -1,29 +1,23 @@
-# MenuConstructor.psm1
-# ------------------------------------------------------------
-# Adapts snippet logic from sample-script.txt for an interactive,
-# scrollable menu that enumerates subfolders under workingDir\orgs,
-# calls Get-Submenu for the selected folder, and processes submenu items.
-# All adjustable variables for menu colors & positions are near the top.
+<#
+.SYNOPSIS
+    Provides an interactive menu and submenu system.
+.DESCRIPTION
+    Reads subfolders under the designated orgs folder and displays an interactive
+    menu. On selection, retrieves and displays submenu items.
+.EXAMPLE
+    Show-MainMenuLoop -workingDir "C:\MyWorkingDir"
+#>
 
-# ------------------------------------------------------------
-# Adjustable variables (menu colors, starting row/col, etc.)
-# ------------------------------------------------------------
-
-# Starting row & column for the menu display
-$Global:MenuStartRow = 5
-$Global:MenuStartColumn = 0
-
-# Default text color for non-highlighted items
-$Global:MenuDefaultForeground = "White"
-
-# Highlighted item foreground/background
-$Global:MenuHighlightForeground = "Black"
-$Global:MenuHighlightBackground = "Yellow"
-
-# We use these for the submenu as well
-$Global:SubmenuDefaultForeground = "Gray"
-$Global:SubmenuHighlightForeground = "Yellow"
-$Global:SubmenuHighlightBackground = "Black"
+#region Script-Scope Global Settings
+$script:MenuStartRow = 5
+$script:MenuStartColumn = 0
+$script:MenuDefaultForeground = "White"
+$script:MenuHighlightForeground = "Black"
+$script:MenuHighlightBackground = "Yellow"
+$script:SubmenuDefaultForeground = "Gray"
+$script:SubmenuHighlightForeground = "Yellow"
+$script:SubmenuHighlightBackground = "Black"
+#endregion Script-Scope Global Settings
 
 # If your environment has "Write-Log" or "Write-MainLog" for logging,
 # define whichever you prefer. We'll define a small helper:
@@ -165,14 +159,20 @@ function Show-Submenu {
 # ------------------------------------------------------------
 
 function Invoke-Manifest {
+    <#
+    .SYNOPSIS
+        Processes a manifest file from a provided URL.
+    .EXAMPLE
+        Invoke-Manifest -companyName "AcmeCorp" -manifestUrl "https://example.com/manifest.txt"
+    #>
     param(
-        [string]$companyName,
-        [string]$manifestUrl
+        [Parameter()][string]$companyName,
+        [Parameter()][string]$manifestUrl
     )
     Write-Host "Processing manifest for $companyName from $manifestUrl" -ForegroundColor Cyan
     try {
         $manifestContent = (Invoke-WebRequest -Uri $manifestUrl -UseBasicParsing -ErrorAction Stop).Content
-        Write-MainLog "Downloaded manifest for $companyName from $manifestUrl"
+        Write-Host "Manifest downloaded for $companyName" -ForegroundColor Green
     }
     catch {
         Write-Host "Error downloading manifest: $_" -ForegroundColor Red
@@ -242,14 +242,20 @@ function Invoke-Manifest {
 }
 
 function Invoke-Script {
+    <#
+    .SYNOPSIS
+        Downloads and executes a script.
+    .EXAMPLE
+        Invoke-Script -scriptUrl "https://example.com/script.ps1"
+    #>
     param(
-        [string]$scriptUrl
+        [Parameter()][string]$scriptUrl
     )
     Write-Host "Downloading script from $scriptUrl..." -ForegroundColor Cyan
     $tempScript = Join-Path $env:TEMP "tempScript.ps1"
     try {
         Invoke-WebRequest -Uri $scriptUrl -OutFile $tempScript -UseBasicParsing -ErrorAction Stop
-        Write-Host "Downloaded script. Executing..."
+        Write-Host "Executing downloaded script..." -ForegroundColor Cyan
         & $tempScript
         Remove-Item $tempScript -Force
     }
@@ -259,56 +265,58 @@ function Invoke-Script {
 }
 
 function Invoke-DO {
+    <#
+    .SYNOPSIS
+        Executes a command.
+    .EXAMPLE
+        Invoke-DO -command "Get-Process"
+    #>
     param(
-        [string]$command
+        [Parameter()][string]$command
     )
     Write-Host "Executing command: $command" -ForegroundColor Cyan
     Invoke-Expression $command
 }
 
-# ------------------------------------------------------------
-# Show-MainMenuLoop:
-#  1) Reads subfolders from workingDir\orgs => sorted
-#  2) Renders them in an interactive menu (arrow keys)
-#  3) Once user hits Enter, we call Get-Submenu => Show-Submenu => process action
-#  4) If user chooses "Quit," we exit.
-# ------------------------------------------------------------
 function Show-MainMenuLoop {
+    <#
+    .SYNOPSIS
+        Displays the main menu from subfolders of the orgs folder.
+    .EXAMPLE
+        Show-MainMenuLoop -workingDir "C:\MyWorkingDir"
+    #>
     param(
         [Parameter(Mandatory=$true)][string]$workingDir
     )
     $orgsRoot = Join-Path $workingDir "orgs"
     if (-not (Test-Path $orgsRoot)) {
-        Write-Host "No orgs folder found at $orgsRoot. Exiting menu."
+        Write-Host "No orgs folder found at $orgsRoot. Exiting menu." -ForegroundColor Yellow
         return
     }
     while ($true) {
-        # 1) gather subfolder names, sorted
         $folders = Get-ChildItem -Path $orgsRoot -Directory | Select-Object -ExpandProperty Name | Sort-Object
         if (-not $folders) {
             Write-Host "No folders found in $orgsRoot."
             return
         }
-        # We'll add a "Quit" item
         $menuItems = $folders + "Quit"
-        # 2) render them in a scrollable menu
         $selectedIndex = 0
-        $exitMenu      = $false
+        $exitMenu = $false
         while (-not $exitMenu) {
-            for ($i=0; $i -lt $menuItems.Count; $i++) {
-                [Console]::SetCursorPosition($Global:MenuStartColumn, $Global:MenuStartRow + $i)
+            for ($i = 0; $i -lt $menuItems.Count; $i++) {
+                [Console]::SetCursorPosition($script:MenuStartColumn, $script:MenuStartRow + $i)
                 $itemText = $menuItems[$i]
                 if ($i -eq $selectedIndex) {
-                    Write-Host ("-> " + $itemText + "  ") -ForegroundColor $Global:MenuHighlightForeground -BackgroundColor $Global:MenuHighlightBackground
+                    Write-Host ("-> " + $itemText + "  ") -ForegroundColor $script:MenuHighlightForeground -BackgroundColor $script:MenuHighlightBackground
                 }
                 else {
-                    Write-Host ("   " + $itemText + "  ") -ForegroundColor $Global:MenuDefaultForeground -BackgroundColor "Black"
+                    Write-Host ("   " + $itemText + "  ") -ForegroundColor $script:MenuDefaultForeground -BackgroundColor "Black"
                 }
             }
             $key = [Console]::ReadKey($true)
             switch ($key.Key) {
-                'UpArrow'   { if ($selectedIndex -gt 0) { $selectedIndex-- } else { $selectedIndex = $menuItems.Count - 1 } }
-                'DownArrow' { if ($selectedIndex -lt ($menuItems.Count-1)) { $selectedIndex++ } else { $selectedIndex = 0 } }
+                'UpArrow'   { $selectedIndex = if ($selectedIndex -gt 0) { $selectedIndex - 1 } else { $menuItems.Count - 1 } }
+                'DownArrow' { $selectedIndex = if ($selectedIndex -lt ($menuItems.Count-1)) { $selectedIndex + 1 } else { 0 } }
                 'Enter'     { $exitMenu = $true }
             }
         }
@@ -318,7 +326,6 @@ function Show-MainMenuLoop {
             Write-Host "Exiting menu. Goodbye!" -ForegroundColor Cyan
             break
         }
-        # 3) user selected a real folder => get submenu => show => process
         $submenuItems = Get-Submenu -companyName $chosen
         if (-not $submenuItems) {
             Write-Host "No submenu found or error retrieving it for $chosen." -ForegroundColor Yellow
@@ -327,24 +334,14 @@ function Show-MainMenuLoop {
         }
         $selectedSubmenuItem = Show-Submenu -companyName $chosen -submenuItems $submenuItems -startRow 2
         if (-not $selectedSubmenuItem) {
-            Write-Host "No submenu item selected? Returning to main menu." -ForegroundColor Yellow
+            Write-Host "No submenu item selected. Returning to main menu." -ForegroundColor Yellow
             continue
         }
-        # process the item
         switch ($selectedSubmenuItem.ActionType.ToUpper()) {
-            "MANIFEST" {
-                Invoke-Manifest -companyName $chosen -manifestUrl $selectedSubmenuItem.ActionContent
-            }
-            "SCRIPT" {
-                Invoke-Script -scriptUrl $selectedSubmenuItem.ActionContent
-            }
-            "DO" {
-                Invoke-DO -command $selectedSubmenuItem.ActionContent
-            }
-            default {
-                Write-Host "No action defined for this submenu item. Returning to main menu." -ForegroundColor Yellow
-                continue
-            }
+            "MANIFEST" { Invoke-Manifest -companyName $chosen -manifestUrl $selectedSubmenuItem.ActionContent }
+            "SCRIPT"   { Invoke-Script -scriptUrl $selectedSubmenuItem.ActionContent }
+            "DO"       { Invoke-DO -command $selectedSubmenuItem.ActionContent }
+            default    { Write-Host "No action defined for this submenu item. Returning to main menu." -ForegroundColor Yellow; continue }
         }
         Write-Host "Press any key to return to the main menu..."
         $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
@@ -352,5 +349,15 @@ function Show-MainMenuLoop {
     }
 }
 
-Export-ModuleMember -Function `
-    Get-Submenu, Show-Submenu, Invoke-Manifest, Invoke-Script, Invoke-DO, Show-MainMenuLoop
+#region Global Menu Settings (using script scope)
+$script:MenuStartRow = 5
+$script:MenuStartColumn = 0
+$script:MenuDefaultForeground = "White"
+$script:MenuHighlightForeground = "Black"
+$script:MenuHighlightBackground = "Yellow"
+$script:SubmenuDefaultForeground = "Gray"
+$script:SubmenuHighlightForeground = "Yellow"
+$script:SubmenuHighlightBackground = "Black"
+#endregion Global Menu Settings
+
+Export-ModuleMember -Function Get-Submenu, Show-Submenu, Invoke-Manifest, Invoke-Script, Invoke-DO, Show-MainMenuLoop

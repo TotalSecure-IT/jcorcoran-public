@@ -24,9 +24,9 @@ if (-not (Test-Path -Path $modulesFolder)) {
 }
 
 #------------------------------------------------------------------
-# Force mode to ONLINE
+# Simulate ONLINE mode LOL
+# Cached mode was determined to be wholly useless after some thought
 #------------------------------------------------------------------
-$mode = "ONLINE"
 Write-Host "Mode:" -NoNewline; Write-Host " ONLINE" -ForegroundColor Green
 
 #------------------------------------------------------------------
@@ -97,6 +97,17 @@ if (Test-Path -Path $menuConstructorModulePath) {
 }
 else {
     Write-Host "MenuConstructor module not available. Exiting." -ForegroundColor Yellow
+    Read-Host "Press Enter to exit..."
+    exit 1
+}
+
+# Onboarding Module
+$menuConstructorModulePath = Join-Path $modulesFolder "Onboarding.psm1"
+if (Test-Path -Path $menuConstructorModulePath) {
+    Import-Module $menuConstructorModulePath -Force
+}
+else {
+    Write-Host "Onboarding module not available. Exiting." -ForegroundColor Yellow
     Read-Host "Press Enter to exit..."
     exit 1
 }

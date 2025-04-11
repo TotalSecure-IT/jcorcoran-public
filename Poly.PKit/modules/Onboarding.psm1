@@ -1,31 +1,26 @@
 <#
 .SYNOPSIS
-    Onboarding.psm1 automates the onboarding process of a machine based on a company-specific config.ini file.
+    Onboarding.psm1 automates the onboarding process based on a company-specific config.ini.
 .DESCRIPTION
-    This module reads a config.ini (supplied via --company-ini) and:
-      - Parses its sections ([General], [Credentials], [WingetApps], [Apps], [Compressed Files], [Commands])
-      - Downloads and silently installs applications obtained via winget (saving installers to a universal folder)
-      - Installs local applications if not already installed
-      - Extracts archive files (.zip, .rar, .7z, .tar) to designated locations
-      - Executes command strings from the [Commands] section with a custom status display (e.g. [ failures | successes ])
-      - Provides live, colored console updates (banner and status tables) identical to sample-script.ps1
-      - Logs every action with timestamps and runs completely non-interactively (no prompts)
+    This module reads a config.ini (supplied via the -CompanyIni parameter) and:
+      - Parses sections ([General], [Credentials], [WingetApps], [Apps], [Compressed Files], [Commands])
+      - Downloads and installs applications via winget (retaining installer files)
+      - Installs local applications (if not already installed)
+      - Extracts archives (.zip, .rar, .7z, .tar)
+      - Executes commands from the [Commands] section with custom status display ([ failures | successes ])
+      - Provides live, colored console updates and logs all actions non-interactively.
 .EXAMPLE
     Start-Onboarding -CompanyIni "C:\Path\To\workingdirectory\configs\MyCompany\config.ini"
 #>
 
 #region Global Variables & Logging
 
-# Global counters for Commands section
 $global:CommandFailures = 0
 $global:CommandSuccesses  = 0
-
-# Global status hashtables for tracking installation statuses
 $global:WingetAppsStatus = @{}
 $global:LocalAppsStatus  = @{}
 $global:ArchivesStatus   = @{}
 
-# Global variables for log file and working folders (set later)
 $global:LogFile = $null
 $global:WorkingDir = $null
 $global:UniversalInstallersDir = $null
@@ -69,8 +64,7 @@ function Convert-IniToHashtable {
             $value = $matches[2].Trim().Trim('"')
             if ($currentSection) {
                 $ini[$currentSection][$key] = $value
-            }
-            else {
+            } else {
                 $ini[$key] = $value
             }
         }
@@ -94,8 +88,7 @@ function Invoke-Banner {
             $color = if ($i -lt $colors.Count) { $colors[$i] } else { "Yellow" }
             Write-Host $bannerLines[$i] -ForegroundColor $color
         }
-    }
-    else {
+    } else {
         Write-Log "Banner file not found at $BannerPath."
     }
 }
@@ -150,9 +143,10 @@ function Invoke-CommandsStatus {
     $failStr = "$global:CommandFailures"
     $succStr = "$global:CommandSuccesses"
     $formatted = "[ $failStr | $succStr ]"
-    # Write the entire status string, then separately output the counts with color.
     Write-Host $formatted -ForegroundColor White
-    Write-Host ("Failures: " + $failStr) -ForegroundColor Red -NoNewline; Write-Host "   " -NoNewline; Write-Host ("Successes: " + $succStr) -ForegroundColor Green
+    Write-Host ("Failures: " + $failStr) -ForegroundColor Red -NoNewline
+    Write-Host "   " -NoNewline
+    Write-Host ("Successes: " + $succStr) -ForegroundColor Green
 }
 
 #endregion Console UI Functions
@@ -446,17 +440,19 @@ function Start-Onboarding {
         # Derive WorkingDir from the CompanyIni file path.
         $configsDir = Split-Path $CompanyIni -Parent
         $global:WorkingDir = Split-Path $configsDir -Parent
-
-        # Fallback if $global:WorkingDir is empty.
-        if ([string]::IsNullOrEmpty($global:WorkingDir)) {
-            $global:WorkingDir = Get-Location
+        if ([string]::IsNullOrWhiteSpace($global:WorkingDir)) {
+            $global:WorkingDir = (Get-Location).Path
         }
         Write-Log "Working Directory determined: $global:WorkingDir"
+
+        # Create logs folder under WorkingDir.
         $logsDir = Join-Path $global:WorkingDir "logs"
         if (-not (Test-Path $logsDir)) { New-Item -ItemType Directory -Path $logsDir | Out-Null }
         $timestamp = Get-Date -Format "yyyy-MM-dd_HHmm"
         $global:LogFile = Join-Path $logsDir "Onboarding_$timestamp.log"
         Write-Log "Log file created: $global:LogFile"
+
+        # Create installers folder under WorkingDir.
         $installersUniversal = Join-Path $global:WorkingDir "installers\universal"
         if (-not (Test-Path $installersUniversal)) { New-Item -ItemType Directory -Path $installersUniversal -Force | Out-Null }
         $global:UniversalInstallersDir = $installersUniversal

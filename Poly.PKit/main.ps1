@@ -1,9 +1,14 @@
-<#
-*~~~~~~~~~~~~~~~~~~~~~*
-|  Poly.PKit v1.0.1b  |
-|    ONLINE MODE     |
-*~~~~~~~~~~~~~~~~~~~~~*
-#>
+# <#
+# .SYNOPSIS
+#   Poly.PKit v1.0.1b - ONLINE MODE
+# .DESCRIPTION
+#   Main script for Poly.PKit in ONLINE mode.
+# 
+# Note: The Write-Host calls are used intentionally for colored interactive output.
+# Suppress the following Script Analyzer warnings:
+#   PSAvoidUsingWriteHost
+#   PSAvoidAssignmentToAutomaticVariables
+# #>
 
 Clear-Host
 #$DebugPreference = "Continue"
@@ -11,34 +16,32 @@ Clear-Host
 #------------------------------------------------------------------
 # Set Working Directories
 #------------------------------------------------------------------
-# Use $MyInvocation.MyCommand.Path for robust determination of the script location.
+# Do not assign to the automatic variable $PSScriptRoot. Instead, define our own.
 if ($MyInvocation.MyCommand.Path) {
-    $PSScriptRoot = Split-Path $MyInvocation.MyCommand.Path -Parent
+    $MyScriptRoot = Split-Path $MyInvocation.MyCommand.Path -Parent
 } else {
-    $PSScriptRoot = Get-Location
+    $MyScriptRoot = (Get-Location).Path
 }
 
-# Derive the working directory from $PSScriptRoot.
-# If main.ps1 resides in the "init" folder, then the workingDir is its parent.
-$workingDir = Split-Path $PSScriptRoot -Parent
-if ([string]::IsNullOrWhiteSpace($workingDir)) {
-    $workingDir = Get-Location
+# Assume main.ps1 is in the "init" folder; working directory is its parent.
+$global:workingDir = Split-Path $MyScriptRoot -Parent
+if ([string]::IsNullOrWhiteSpace($global:workingDir)) {
+    $global:workingDir = (Get-Location).Path
 }
 
-Write-Host "Working Directory set to: $workingDir" -ForegroundColor Green
+Write-Host "Working Directory set to: $global:workingDir" -ForegroundColor Green
 
-# init folder is where main.ps1 resides.
-$initDir = $PSScriptRoot
+# 'init' folder is where main.ps1 resides.
+$initDir = $MyScriptRoot
 
-# Modules folder is inside init.
+# Modules folder is inside the init directory.
 $modulesFolder = Join-Path $initDir "modules"
 if (-not (Test-Path -Path $modulesFolder)) {
     New-Item -ItemType Directory -Path $modulesFolder | Out-Null
 }
 
 #------------------------------------------------------------------
-# Simulate ONLINE mode LOL
-# Cached mode was determined to be wholly useless after some thought
+# Simulate ONLINE mode
 #------------------------------------------------------------------
 Write-Host "Mode:" -NoNewline; Write-Host " ONLINE" -ForegroundColor Green
 
@@ -76,8 +79,7 @@ foreach ($moduleFile in $moduleList) {
 $loggerModulePath = Join-Path $modulesFolder "logger.psm1"
 if (Test-Path -Path $loggerModulePath) {
     Import-Module $loggerModulePath -Force
-}
-else {
+} else {
     Write-Host "Logger module not available. Continuing without logging functionality." -ForegroundColor Yellow
 }
 
@@ -85,10 +87,8 @@ else {
 $configLoaderModulePath = Join-Path $modulesFolder "ConfigLoader.psm1"
 if (Test-Path -Path $configLoaderModulePath) {
     Import-Module $configLoaderModulePath -Force
-}
-else {
+} else {
     Write-Host "ConfigLoader module not available. Exiting." -ForegroundColor Yellow
-    Read-Host "Press Enter to exit..."
     exit 1
 }
 
@@ -96,10 +96,8 @@ else {
 $orgFoldersModulePath = Join-Path $modulesFolder "OrgFolders.psm1"
 if (Test-Path -Path $orgFoldersModulePath) {
     Import-Module $orgFoldersModulePath -Force
-}
-else {
+} else {
     Write-Host "OrgFolders module not available. Exiting." -ForegroundColor Yellow
-    Read-Host "Press Enter to exit..."
     exit 1
 }
 
@@ -107,19 +105,16 @@ else {
 $menuConstructorModulePath = Join-Path $modulesFolder "MenuConstructor.psm1"
 if (Test-Path -Path $menuConstructorModulePath) {
     Import-Module $menuConstructorModulePath -Force
-}
-else {
+} else {
     Write-Host "MenuConstructor module not available. Exiting." -ForegroundColor Yellow
-    Read-Host "Press Enter to exit..."
     exit 1
 }
 
-# Onboarding Module (we simulate the importing of the Onboarding module purely for verbosity as it is called manually in submenu.txt files via Menuconstructor.psm1 | Start-Onboarding -CompanyIni $PSScriptRoot\configs\$companyName\config.ini)
+# Onboarding Module
 $onboardingModulePath = Join-Path $modulesFolder "Onboarding.psm1"
 if (Test-Path $onboardingModulePath) {
     Import-Module $onboardingModulePath -Force
-}
-else {
+} else {
     Write-Host "Onboarding.psm1 not found. Onboarding functionality will be unavailable." -ForegroundColor Yellow
 }
 
@@ -128,14 +123,13 @@ else {
 #------------------------------------------------------------------
 $hostName = $env:COMPUTERNAME
 if (Get-Module -Name logger) {
-    $logInfo = Initialize-Logger -workingDir $workingDir -hostName $env:COMPUTERNAME
+    $logInfo = Initialize-Logger -workingDir $global:workingDir -hostName $hostName
     $Global:JsonLogFilePath = $logInfo.JsonLogFilePath
     $hostLogFolder = $logInfo.HostLogFolder
     $primaryLogFilePath = $logInfo.PrimaryLogFilePath
-    Write-Log -message "Primary log file created: $(Split-Path $primaryLogFilePath -Leaf)" -logFilePath $primaryLogFilePath
+    Write-Log -Message "Primary log file created: $(Split-Path $primaryLogFilePath -Leaf)" -logFilePath $primaryLogFilePath
     Write-SystemLog -hostName $hostName -hostLogFolder $hostLogFolder -primaryLogFilePath $primaryLogFilePath
-}
-else {
+} else {
     Write-Host "Logger module not loaded. Skipping logging initialization." -ForegroundColor Yellow
     $primaryLogFilePath = $null
     $hostLogFolder = $null
@@ -144,7 +138,7 @@ else {
 #------------------------------------------------------------------
 # Configuration File Verification via ConfigLoader
 #------------------------------------------------------------------
-$config = Get-Config -workingDir $workingDir
+$config = Get-Config -workingDir $global:workingDir
 $owner = $config.owner
 $repo  = $config.repo
 $token = $config.token
@@ -157,44 +151,42 @@ Write-Host "  token: " -NoNewline; Write-Host "$token" -ForegroundColor Green
 #------------------------------------------------------------------
 # Basic Folder Creation (configs, orgs, and modules)
 #------------------------------------------------------------------
-$configsPath = Join-Path $workingDir "configs"
+$configsPath = Join-Path $global:workingDir "configs"
 if (-Not (Test-Path -Path $configsPath)) {
     Write-Host "Warning: 'configs' folder not found. It should exist prior to script launch." -ForegroundColor Yellow
-    if ($primaryLogFilePath) { Write-Log -message "Warning: 'configs' folder not found." -logFilePath $primaryLogFilePath }
-}
-else {
+    if ($primaryLogFilePath) { Write-Log -Message "Warning: 'configs' folder not found." -logFilePath $primaryLogFilePath }
+} else {
     Write-Host "'configs' folder exists."
-    if ($primaryLogFilePath) { Write-Log -message "'configs' folder exists." -logFilePath $primaryLogFilePath }
+    if ($primaryLogFilePath) { Write-Log -Message "'configs' folder exists." -logFilePath $primaryLogFilePath }
 }
 
-$orgsPath = Join-Path $workingDir "orgs"
+$orgsPath = Join-Path $global:workingDir "orgs"
 if (-Not (Test-Path -Path $orgsPath)) {
     Write-Host "Creating folder 'orgs'..."
-    if ($primaryLogFilePath) { Write-Log -message "Creating folder 'orgs'." -logFilePath $primaryLogFilePath }
+    if ($primaryLogFilePath) { Write-Log -Message "Creating folder 'orgs'." -logFilePath $primaryLogFilePath }
     New-Item -ItemType Directory -Path $orgsPath | Out-Null
-}
-else {
+} else {
     Write-Host "Folder 'orgs' already exists."
-    if ($primaryLogFilePath) { Write-Log -message "Folder 'orgs' already exists." -logFilePath $primaryLogFilePath }
+    if ($primaryLogFilePath) { Write-Log -Message "Folder 'orgs' already exists." -logFilePath $primaryLogFilePath }
 }
 
 #------------------------------------------------------------------
-# Download Banner Files and Save to 'configs' Folder
+# Download Banner Files to 'configs' Folder
 #------------------------------------------------------------------
-$configsPath = Join-Path $workingDir "configs"
+$configsPath = Join-Path $global:workingDir "configs"
 $mainbannerURL = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/configs/mainbanner.txt"
 $motdURL = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/configs/motd.txt"
 try {
     Invoke-WebRequest -Uri $mainbannerURL -OutFile (Join-Path $configsPath "mainbanner.txt") -UseBasicParsing
     Write-Host "Downloaded mainbanner.txt from GitHub." -ForegroundColor Cyan
     if ($primaryLogFilePath) {
-        Write-Log -message "Downloaded mainbanner.txt from GitHub." -logFilePath $primaryLogFilePath
+        Write-Log -Message "Downloaded mainbanner.txt from GitHub." -logFilePath $primaryLogFilePath
     }
 }
 catch {
     Write-Host "Failed to download mainbanner.txt from GitHub." -ForegroundColor Red
     if ($primaryLogFilePath) {
-        Write-Log -message "Failed to download mainbanner.txt from GitHub." -logFilePath $primaryLogFilePath
+        Write-Log -Message "Failed to download mainbanner.txt from GitHub." -logFilePath $primaryLogFilePath
     }
 }
 
@@ -202,13 +194,13 @@ try {
     Invoke-WebRequest -Uri $motdURL -OutFile (Join-Path $configsPath "motd.txt") -UseBasicParsing
     Write-Host "Downloaded motd.txt from GitHub." -ForegroundColor Cyan
     if ($primaryLogFilePath) {
-        Write-Log -message "Downloaded motd.txt from GitHub." -logFilePath $primaryLogFilePath
+        Write-Log -Message "Downloaded motd.txt from GitHub." -logFilePath $primaryLogFilePath
     }
 }
 catch {
     Write-Host "Failed to download motd.txt from GitHub." -ForegroundColor Red
     if ($primaryLogFilePath) {
-        Write-Log -message "Failed to download motd.txt from GitHub." -logFilePath $primaryLogFilePath
+        Write-Log -Message "Failed to download motd.txt from GitHub." -logFilePath $primaryLogFilePath
     }
 }
 
@@ -219,21 +211,13 @@ if (Test-Path -Path $orgFoldersModulePath) {
     Import-Module $orgFoldersModulePath -Force
     Write-Host "OrgFolders module imported." -ForegroundColor Cyan
     if ($primaryLogFilePath) { 
-        Write-Log -message "OrgFolders module imported." -logFilePath $primaryLogFilePath 
+        Write-Log -Message "OrgFolders module imported." -logFilePath $primaryLogFilePath 
     }
-    Update-OrgFolders `
-    -workingDir $workingDir `
-    -mode "ONLINE" `
-    -owner "TotalSecure-IT" `
-    -repo "jcorcoran-public" `
-    -token $token `
-    -orgsFolderSha "8b8cde2fe87d2155653ddbdaa7530e01b84047bf" `
-    -primaryLogFilePath $primaryLogFilePath
-}
-else {
-    Write-Host "OrgFolders module not found. Skipping additional organization processing." -ForegroundColor Yellow
+    Update-OrgFolders -workingDir $global:workingDir -mode "ONLINE" -owner "TotalSecure-IT" -repo "jcorcoran-public" -token $token -orgsFolderSha "8b8cde2fe87d2155653ddbdaa7530e01b84047bf" -primaryLogFilePath $primaryLogFilePath
+} else {
+    Write-Host "OrgFolders module not found. Skipping organization processing." -ForegroundColor Yellow
     if ($primaryLogFilePath) { 
-        Write-Log -message "OrgFolders module not found. Skipping additional organization processing." -logFilePath $primaryLogFilePath 
+        Write-Log -Message "OrgFolders module not found. Skipping organization processing." -logFilePath $primaryLogFilePath 
     }
 }
 
@@ -241,4 +225,4 @@ Start-Sleep -Seconds 1
 Clear-Host
 
 # Call the main menu loop:
-Show-MainMenuLoop -workingDir $workingDir
+Show-MainMenuLoop -workingDir $global:workingDir

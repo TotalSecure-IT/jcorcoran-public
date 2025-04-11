@@ -1,42 +1,44 @@
 <#
 .SYNOPSIS
-    Automates the onboarding process using a company-specific config.ini.
+    Onboarding.psm1 automates the onboarding process of a machine based on a company-specific config.ini file.
 .DESCRIPTION
-    Parses the config.ini (supplied via -CompanyIni) to drive onboarding tasks:
-      - Retrieves settings from sections [General], [Credentials], [WingetApps], [Apps],
-        [Compressed Files], and [Commands].
-      - Downloads and installs applications (via winget and local installers).
-      - Extracts compressed files.
-      - Executes designated commands.
-      - Provides live, colored status updates and logs all actions.
+    This module reads a config.ini (supplied via --company-ini) and:
+      - Parses its sections ([General], [Credentials], [WingetApps], [Apps], [Compressed Files], [Commands])
+      - Downloads and silently installs applications obtained via winget (saving installers to a universal folder)
+      - Installs local applications if not already installed
+      - Extracts archive files (.zip, .rar, .7z, .tar) to designated locations
+      - Executes command strings from the [Commands] section with a custom status display (e.g. [ failures | successes ])
+      - Provides live, colored console updates (banner and status tables) identical to sample-script.ps1
+      - Logs every action with timestamps and runs completely non-interactively (no prompts)
 .EXAMPLE
-    Start-Onboarding -CompanyIni "C:\MyWorkingDir\configs\MyCompany\config.ini"
+    Start-Onboarding -CompanyIni "C:\Path\To\workingdirectory\configs\MyCompany\config.ini"
 #>
 
 #region Global Variables & Logging
 
-$script:CommandFailures = 0
-$script:CommandSuccesses  = 0
-$script:WingetAppsStatus = @{}
-$script:LocalAppsStatus  = @{}
-$script:ArchivesStatus   = @{}
+# Global counters for Commands section
+$global:CommandFailures = 0
+$global:CommandSuccesses  = 0
 
-$script:LogFile = $null
-$script:WorkingDir = $null
-$script:UniversalInstallersDir = $null
+# Global status hashtables for tracking installation statuses
+$global:WingetAppsStatus = @{}
+$global:LocalAppsStatus  = @{}
+$global:ArchivesStatus   = @{}
 
-function Write-PKitLog {
-    <#
-    .SYNOPSIS
-        Writes a timestamped log entry.
-    #>
+# Global variables for log file and working folders (set later)
+$global:LogFile = $null
+$global:WorkingDir = $null
+$global:UniversalInstallersDir = $null
+
+function Write-Log {
     param(
-        [Parameter(Mandatory=$true)][string]$Message
+        [Parameter(Mandatory)]
+        [string]$Message
     )
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $entry = "$timestamp - $Message"
-    if ($script:LogFile) {
-        Add-Content -Path $script:LogFile -Value $entry
+    if ($global:LogFile) {
+        Add-Content -Path $global:LogFile -Value $entry
     }
     Write-Host $entry
 }
@@ -46,19 +48,12 @@ function Write-PKitLog {
 #region Config Parsing
 
 function Convert-IniToHashtable {
-    <#
-    .SYNOPSIS
-        Converts an INI file to a hashtable.
-    .DESCRIPTION
-        Reads the INI file located at the specified path and returns a nested hashtable.
-    .EXAMPLE
-        $config = Convert-IniToHashtable -Path "C:\MyWorkingDir\configs\MyCompany\config.ini"
-    #>
     param(
-        [Parameter(Mandatory=$true)][string]$Path
+        [Parameter(Mandatory)]
+        [string]$Path
     )
     if (-not (Test-Path $Path)) {
-        Write-PKitLog "Config file not found at $Path. Exiting."
+        Write-Log "Config file not found at $Path. Exiting."
         throw "Config file not found."
     }
     $ini = @{}
@@ -88,14 +83,9 @@ function Convert-IniToHashtable {
 #region Console UI Functions
 
 function Invoke-Banner {
-    <#
-    .SYNOPSIS
-        Displays the banner file with color.
-    .EXAMPLE
-        Invoke-Banner -BannerPath "C:\MyWorkingDir\configs\MyCompany\banner.txt"
-    #>
     param(
-        [Parameter(Mandatory=$true)][string]$BannerPath
+        [Parameter(Mandatory)]
+        [string]$BannerPath
     )
     if (Test-Path $BannerPath) {
         $bannerLines = Get-Content $BannerPath -Encoding UTF8
@@ -106,15 +96,11 @@ function Invoke-Banner {
         }
     }
     else {
-        Write-PKitLog "Banner file not found at $BannerPath."
+        Write-Log "Banner file not found at $BannerPath."
     }
 }
 
-function Invoke-AppStatus {
-    <#
-    .SYNOPSIS
-        Displays the installation status for apps.
-    #>
+function Invoke-Appstatus {
     param(
         [hashtable]$WingetStatus,
         [hashtable]$LocalStatus,
@@ -124,134 +110,135 @@ function Invoke-AppStatus {
     Write-Host "Installation Status:" -ForegroundColor Cyan
     foreach ($key in $WingetStatus.Keys) {
         $status = $WingetStatus[$key]
-        if ($status -eq "Success") { Write-Host "$key : $status" -ForegroundColor Green }
-        elseif ($status -eq "Failed") { Write-Host "$key : $status" -ForegroundColor Red }
-        else { Write-Host "$key : $status" -ForegroundColor Yellow }
+        if ($status -eq "Success") {
+            Write-Host "$key : $status" -ForegroundColor Green
+        }
+        elseif ($status -eq "Failed") {
+            Write-Host "$key : $status" -ForegroundColor Red
+        }
+        else {
+            Write-Host "$key : $status" -ForegroundColor Yellow
+        }
     }
     foreach ($key in $LocalStatus.Keys) {
         $status = $LocalStatus[$key]
-        if ($status -eq "Success") { Write-Host "$key : $status" -ForegroundColor Green }
-        elseif ($status -eq "Failed") { Write-Host "$key : $status" -ForegroundColor Red }
-        else { Write-Host "$key : $status" -ForegroundColor Yellow }
+        if ($status -eq "Success") {
+            Write-Host "$key : $status" -ForegroundColor Green
+        }
+        elseif ($status -eq "Failed") {
+            Write-Host "$key : $status" -ForegroundColor Red
+        }
+        else {
+            Write-Host "$key : $status" -ForegroundColor Yellow
+        }
     }
     foreach ($key in $ArchiveStatus.Keys) {
         $status = $ArchiveStatus[$key]
-        if ($status -eq "Success") { Write-Host "$key : $status" -ForegroundColor Green }
-        elseif ($status -eq "Failed") { Write-Host "$key : $status" -ForegroundColor Red }
-        else { Write-Host "$key : $status" -ForegroundColor Yellow }
+        if ($status -eq "Success") {
+            Write-Host "$key : $status" -ForegroundColor Green
+        }
+        elseif ($status -eq "Failed") {
+            Write-Host "$key : $status" -ForegroundColor Red
+        }
+        else {
+            Write-Host "$key : $status" -ForegroundColor Yellow
+        }
     }
 }
 
 function Invoke-CommandsStatus {
-    <#
-    .SYNOPSIS
-        Displays the command execution status as "[ failures | successes ]".
-    #>
-    $failStr = "$script:CommandFailures"
-    $succStr = "$script:CommandSuccesses"
+    $failStr = "$global:CommandFailures"
+    $succStr = "$global:CommandSuccesses"
     $formatted = "[ $failStr | $succStr ]"
+    # Write the entire status string, then separately output the counts with color.
     Write-Host $formatted -ForegroundColor White
-    Write-Host ("Failures: " + $failStr) -ForegroundColor Red -NoNewline
-    Write-Host "   " -NoNewline
-    Write-Host ("Successes: " + $succStr) -ForegroundColor Green
+    Write-Host ("Failures: " + $failStr) -ForegroundColor Red -NoNewline; Write-Host "   " -NoNewline; Write-Host ("Successes: " + $succStr) -ForegroundColor Green
 }
 
 #endregion Console UI Functions
 
 #region WingetApps Installation
 
-function Install-WingetApp {
-    <#
-    .SYNOPSIS
-        Installs one Winget application.
-    .DESCRIPTION
-        Retrieves installer URL using winget, downloads the installer to the universal folder, and executes it silently.
-    .EXAMPLE
-        Install-WingetApp -AppName "Google.Chrome" -AppVersion "" -AppArgs "/qn"
-    #>
-    param(
-        [Parameter(Mandatory=$true)][string]$AppName,
-        [string]$AppVersion,
-        [string]$AppArgs
-    )
-    Write-PKitLog "Processing Winget app: $AppName"
-    $wingetCmd = "winget show `"$AppName`""
-    if ($AppVersion) { $wingetCmd += " --version $AppVersion" }
-    Write-PKitLog "Executing command: $wingetCmd"
-    try {
-        $wingetOutput = Invoke-Expression $wingetCmd 2>&1
-    }
-    catch {
-        Write-PKitLog "Failed to execute winget show for $AppName. Marking as Failed."
-        $script:WingetAppsStatus[$AppName] = "Failed"
-        return
-    }
-    $installerUrl = $null
-    foreach ($line in $wingetOutput) {
-        if ($line -match "Installer\s+Url:\s*(\S+)") {
-            $installerUrl = $matches[1]
-            break
-        }
-    }
-    if (-not $installerUrl) {
-        Write-PKitLog "No installer URL found for $AppName. Marking as Failed."
-        $script:WingetAppsStatus[$AppName] = "Failed"
-        return
-    }
-    Write-PKitLog "Found installer URL for $AppName $installerUrl"
-    $filename = Split-Path $installerUrl -Leaf
-    $destinationPath = Join-Path $script:UniversalInstallersDir $filename
-    if (-not (Test-Path $destinationPath)) {
-        Write-PKitLog "Downloading installer for $AppName..."
-        try {
-            Invoke-WebRequest -Uri $installerUrl -OutFile $destinationPath -UseBasicParsing
-        }
-        catch {
-            Write-PKitLog "Download failed for $AppName. Marking as Failed."
-            $script:WingetAppsStatus[$AppName] = "Failed"
-            return
-        }
-    }
-    else { Write-PKitLog "Installer file already exists for $AppName." }
-    Write-PKitLog "Installing $AppName from $destinationPath..."
-    try {
-        $proc = Start-Process -FilePath $destinationPath -ArgumentList $AppArgs -Wait -PassThru -WindowStyle Hidden
-        if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 3010) {
-            Write-PKitLog "$AppName installed successfully."
-            $script:WingetAppsStatus[$AppName] = "Success"
-        } else {
-            Write-PKitLog "$AppName installation failed with exit code $($proc.ExitCode)."
-            $script:WingetAppsStatus[$AppName] = "Failed"
-        }
-    }
-    catch {
-        Write-PKitLog "Exception during installation of $AppName $_"
-        $script:WingetAppsStatus[$AppName] = "Failed"
-    }
-    Invoke-AppStatus -WingetStatus $script:WingetAppsStatus -LocalStatus @{} -ArchiveStatus @{}
-}
-
 function Install-WingetApps {
-    <#
-    .SYNOPSIS
-        Processes all Winget apps defined in the config.
-    .EXAMPLE
-        Install-WingetApps -WingetSection $config.WingetApps
-    #>
     param(
-        [Parameter(Mandatory=$true)][hashtable]$WingetSection
+        [hashtable]$WingetSection
     )
-    Write-PKitLog "Starting Winget apps installation..."
+    Write-Log "Starting WingetApps installation..."
+    $appNumbers = @()
     foreach ($key in $WingetSection.Keys) {
         if ($key -match "^(App\d+)$") {
-            $appNumber = $matches[1]
-            $appName = $WingetSection[$appNumber]
-            $appVersion = $WingetSection["$appNumber" + "Version"]
-            $appArgs = $WingetSection["$appNumber" + "Args"]
-            if ($appName) {
-                Install-WingetApp -AppName $appName -AppVersion $appVersion -AppArgs $appArgs
+            $appNumbers += $matches[1]
+        }
+    }
+    $appNumbers = $appNumbers | Sort-Object
+    foreach ($appNum in $appNumbers) {
+        $appName = $WingetSection["$appNum"]
+        $versionKey = "$appNum" + "Version"
+        $argsKey    = "$appNum" + "Args"
+        $appVersion = $WingetSection[$versionKey]
+        $appArgs    = $WingetSection[$argsKey]
+        if (-not $appName) { continue }
+        Write-Log "Processing Winget app: $appName"
+
+        $wingetCmd = "winget show `"$appName`""
+        if ($appVersion) {
+            $wingetCmd += " --version $appVersion"
+        }
+        Write-Log "Executing command: $wingetCmd"
+        try {
+            $wingetOutput = Invoke-Expression $wingetCmd 2>&1
+        }
+        catch {
+            Write-Log "Failed to execute winget show for $appName. Marking as Failed."
+            $global:WingetAppsStatus[$appName] = "Failed"
+            continue
+        }
+        $installerUrl = $null
+        foreach ($line in $wingetOutput) {
+            if ($line -match "Installer\s+Url:\s*(\S+)") {
+                $installerUrl = $matches[1]
+                break
             }
         }
+        if (-not $installerUrl) {
+            Write-Log "No installer URL found for $appName. Marking as Failed."
+            $global:WingetAppsStatus[$appName] = "Failed"
+            continue
+        }
+        Write-Log "Found installer URL for $appName $installerUrl"
+        $filename = Split-Path $installerUrl -Leaf
+        $destinationPath = Join-Path $global:UniversalInstallersDir $filename
+        if (-not (Test-Path $destinationPath)) {
+            Write-Log "Downloading installer for $appName..."
+            try {
+                Invoke-WebRequest -Uri $installerUrl -OutFile $destinationPath -UseBasicParsing
+            }
+            catch {
+                Write-Log "Download failed for $appName. Marking as Failed."
+                $global:WingetAppsStatus[$appName] = "Failed"
+                continue
+            }
+        }
+        else {
+            Write-Log "Installer file already exists for $appName."
+        }
+        Write-Log "Installing $appName from $destinationPath..."
+        try {
+            $proc = Start-Process -FilePath $destinationPath -ArgumentList $appArgs -Wait -PassThru -WindowStyle Hidden
+            if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 3010) {
+                Write-Log "$appName installed successfully."
+                $global:WingetAppsStatus[$appName] = "Success"
+            }
+            else {
+                Write-Log "$appName installation failed with exit code $($proc.ExitCode)."
+                $global:WingetAppsStatus[$appName] = "Failed"
+            }
+        }
+        catch {
+            Write-Log "Exception during installation of $appName $_"
+            $global:WingetAppsStatus[$appName] = "Failed"
+        }
+        Invoke-Appstatus -WingetStatus $global:WingetAppsStatus -LocalStatus @{} -ArchiveStatus @{}
     }
 }
 
@@ -259,74 +246,57 @@ function Install-WingetApps {
 
 #region Local Apps Installation
 
-function Install-LocalApp {
-    <#
-    .SYNOPSIS
-        Installs one local app.
-    .DESCRIPTION
-        Checks if the app is installed (via CheckPath), then runs the installer from the local source.
-    .EXAMPLE
-        Install-LocalApp -AppName "VSA X" -AppSource "C:\Installers\agent.msi" `
-          -AppArgs "/qn" -AppCheckPath "C:\Program Files\VSA X\app.exe"
-    #>
-    param(
-        [Parameter(Mandatory=$true)][string]$AppName,
-        [Parameter(Mandatory=$true)][string]$AppSource,
-        [string]$AppArgs,
-        [string]$AppCheckPath
-    )
-    Write-PKitLog "Processing local app: $AppName"
-    if ($AppCheckPath -and (Test-Path $AppCheckPath)) {
-        Write-PKitLog "$AppName is already installed. Skipping installation."
-        $script:LocalAppsStatus[$AppName] = "Skipped"
-        return
-    }
-    if (-not (Test-Path $AppSource)) {
-        Write-PKitLog "Installer for $AppName not found at $AppSource. Marking as Failed."
-        $script:LocalAppsStatus[$AppName] = "Failed"
-        return
-    }
-    Write-PKitLog "Installing $AppName using source $AppSource..."
-    try {
-        $proc = Start-Process -FilePath $AppSource -ArgumentList $AppArgs -Wait -PassThru -WindowStyle Hidden
-        if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 3010) {
-            Write-PKitLog "$AppName installed successfully."
-            $script:LocalAppsStatus[$AppName] = "Success"
-        }
-        else {
-            Write-PKitLog "$AppName installation failed with exit code $($proc.ExitCode)."
-            $script:LocalAppsStatus[$AppName] = "Failed"
-        }
-    }
-    catch {
-        Write-PKitLog "Exception during installation of $AppName $_"
-        $script:LocalAppsStatus[$AppName] = "Failed"
-    }
-    Invoke-AppStatus -WingetStatus @{} -LocalStatus $script:LocalAppsStatus -ArchiveStatus @{}
-}
-
 function Install-LocalApps {
-    <#
-    .SYNOPSIS
-        Processes all local apps defined in the config.
-    .EXAMPLE
-        Install-LocalApps -AppsSection $config.Apps
-    #>
     param(
-        [Parameter(Mandatory=$true)][hashtable]$AppsSection
+        [hashtable]$AppsSection
     )
-    Write-PKitLog "Starting local apps installation..."
+    Write-Log "Starting local Apps installation..."
+    $appNumbers = @()
     foreach ($key in $AppsSection.Keys) {
         if ($key -match "^(App\d+Name)$") {
-            $num = $matches[1] -replace "Name", ""
-            $appName = $AppsSection["$num" + "Name"]
-            $appSource = $AppsSection["$num" + "Source"]
-            $appArgs = $AppsSection["$num" + "Args"]
-            $appCheckPath = $AppsSection["$num" + "CheckPath"]
-            if ($appName) {
-                Install-LocalApp -AppName $appName -AppSource $appSource -AppArgs $appArgs -AppCheckPath $appCheckPath
+            $appNum = $matches[1] -replace "Name", ""
+            $appNumbers += $appNum
+        }
+    }
+    $appNumbers = $appNumbers | Sort-Object
+    foreach ($appNum in $appNumbers) {
+        $nameKey = "$appNum" + "Name"
+        $sourceKey = "$appNum" + "Source"
+        $argsKey = "$appNum" + "Args"
+        $checkPathKey = "$appNum" + "CheckPath"
+        $appName = $AppsSection[$nameKey]
+        $appSource = $AppsSection[$sourceKey]
+        $appArgs = $AppsSection[$argsKey]
+        $appCheckPath = $AppsSection[$checkPathKey]
+        if (-not $appName) { continue }
+        Write-Log "Processing local app: $appName"
+        if ($appCheckPath -and (Test-Path $appCheckPath)) {
+            Write-Log "$appName is already installed. Skipping installation."
+            $global:LocalAppsStatus[$appName] = "Skipped"
+            continue
+        }
+        if (-not (Test-Path $appSource)) {
+            Write-Log "Installer for $appName not found at $appSource. Marking as Failed."
+            $global:LocalAppsStatus[$appName] = "Failed"
+            continue
+        }
+        Write-Log "Installing $appName using source $appSource..."
+        try {
+            $proc = Start-Process -FilePath $appSource -ArgumentList $appArgs -Wait -PassThru -WindowStyle Hidden
+            if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 3010) {
+                Write-Log "$appName installed successfully."
+                $global:LocalAppsStatus[$appName] = "Success"
+            }
+            else {
+                Write-Log "$appName installation failed with exit code $($proc.ExitCode)."
+                $global:LocalAppsStatus[$appName] = "Failed"
             }
         }
+        catch {
+            Write-Log "Exception during installation of $appName $_"
+            $global:LocalAppsStatus[$appName] = "Failed"
+        }
+        Invoke-Appstatus -WingetStatus @{} -LocalStatus $global:LocalAppsStatus -ArchiveStatus @{}
     }
 }
 
@@ -334,95 +304,80 @@ function Install-LocalApps {
 
 #region Archives Extraction
 
-function Invoke-Archive {
-    <#
-    .SYNOPSIS
-        Extracts one archive file.
-    .DESCRIPTION
-        Based on the extension (.zip, .rar, .7z, .tar), extracts the file to the destination.
-    .EXAMPLE
-        Invoke-Archive -ArchivePath "C:\Installers\app.zip" -DestinationPath "C:\Extracted"
-    #>
-    param(
-        [Parameter(Mandatory=$true)][string]$ArchivePath,
-        [Parameter(Mandatory=$true)][string]$DestinationPath,
-        [string]$ExtraArgs
-    )
-    if (-not (Test-Path $ArchivePath)) {
-        Write-PKitLog "Archive not found: $ArchivePath. Marking as Failed."
-        $script:ArchivesStatus[$ArchivePath] = "Failed"
-        return
-    }
-    Write-PKitLog "Extracting archive: $ArchivePath to $DestinationPath"
-    try {
-        $ext = [System.IO.Path]::GetExtension($ArchivePath).ToLower()
-        switch ($ext) {
-            ".zip" {
-                Expand-Archive -Path $ArchivePath -DestinationPath $DestinationPath -Force
-                $script:ArchivesStatus[$ArchivePath] = "Success"
-            }
-            ".rar" {
-                if (Get-Command unrar -ErrorAction SilentlyContinue) {
-                    unrar x $ArchivePath $DestinationPath $ExtraArgs
-                    $script:ArchivesStatus[$ArchivePath] = "Success"
-                }
-                else {
-                    Write-PKitLog "No unrar utility found for $ArchivePath."
-                    $script:ArchivesStatus[$ArchivePath] = "Failed"
-                }
-            }
-            ".7z" {
-                if (Get-Command 7z -ErrorAction SilentlyContinue) {
-                    7z x $ArchivePath -o$DestinationPath $ExtraArgs
-                    $script:ArchivesStatus[$ArchivePath] = "Success"
-                }
-                else {
-                    Write-PKitLog "No 7z utility found for $ArchivePath."
-                    $script:ArchivesStatus[$ArchivePath] = "Failed"
-                }
-            }
-            ".tar" {
-                if (Get-Command tar -ErrorAction SilentlyContinue) {
-                    tar -xf $ArchivePath -C $DestinationPath
-                    $script:ArchivesStatus[$ArchivePath] = "Success"
-                }
-                else {
-                    Write-PKitLog "No tar utility found for $ArchivePath."
-                    $script:ArchivesStatus[$ArchivePath] = "Failed"
-                }
-            }
-            default {
-                Write-PKitLog "Unsupported archive type: $ext for file $ArchivePath."
-                $script:ArchivesStatus[$ArchivePath] = "Failed"
-            }
-        }
-    }
-    catch {
-        Write-PKitLog "Exception extracting $ArchivePath $_"
-        $script:ArchivesStatus[$ArchivePath] = "Failed"
-    }
-    Invoke-AppStatus -WingetStatus @{} -LocalStatus @{} -ArchiveStatus $script:ArchivesStatus
-}
-
 function Invoke-Archives {
-    <#
-    .SYNOPSIS
-        Processes all compressed files defined in the config.
-    .EXAMPLE
-        Invoke-Archives -ArchivesSection $config.'Compressed Files'
-    #>
     param(
-        [Parameter(Mandatory=$true)][hashtable]$ArchivesSection
+        [hashtable]$ArchivesSection
     )
-    Write-PKitLog "Starting extraction of compressed files..."
+    Write-Log "Starting extraction of compressed files..."
+    $archiveNumbers = @()
     foreach ($key in $ArchivesSection.Keys) {
         if ($key -match "^(Archive\d+Name)$") {
-            $num = $matches[1] -replace "Name", ""
-            $archivePath = $ArchivesSection["$num" + "Name"]
-            $destinationPath = $ArchivesSection["$num" + "Destination"]
-            $extraArgs = $ArchivesSection["$num" + "Args"]
-            Invoke-Archive -ArchivePath $archivePath -DestinationPath $destinationPath -ExtraArgs $extraArgs
+            $archNum = $matches[1] -replace "Name", ""
+            $archiveNumbers += $archNum
         }
+    }
+    $archiveNumbers = $archiveNumbers | Sort-Object
+    foreach ($archNum in $archiveNumbers) {
+        $nameKey = "$archNum" + "Name"
+        $destKey = "$archNum" + "Destination"
+        $argsKey = "$archNum" + "Args"
+        $archivePath = $ArchivesSection[$nameKey]
+        $destPath = $ArchivesSection[$destKey]
+        $extraArgs = $ArchivesSection[$argsKey]
+        if (-not (Test-Path $archivePath)) {
+            Write-Log "Archive not found: $archivePath. Marking as Failed."
+            $global:ArchivesStatus[$archivePath] = "Failed"
+            continue
+        }
+        Write-Log "Extracting archive: $archivePath to $destPath"
+        try {
+            $ext = [System.IO.Path]::GetExtension($archivePath).ToLower()
+            switch ($ext) {
+                ".zip" {
+                    Expand-Archive -Path $archivePath -DestinationPath $destPath -Force
+                    $global:ArchivesStatus[$archivePath] = "Success"
+                }
+                ".rar" {
+                    if (Get-Command unrar -ErrorAction SilentlyContinue) {
+                        unrar x $archivePath $destPath $extraArgs
+                        $global:ArchivesStatus[$archivePath] = "Success"
+                    }
+                    else {
+                        Write-Log "No unrar utility found for $archivePath."
+                        $global:ArchivesStatus[$archivePath] = "Failed"
+                    }
+                }
+                ".7z" {
+                    if (Get-Command 7z -ErrorAction SilentlyContinue) {
+                        7z x $archivePath -o$destPath $extraArgs
+                        $global:ArchivesStatus[$archivePath] = "Success"
+                    }
+                    else {
+                        Write-Log "No 7z utility found for $archivePath."
+                        $global:ArchivesStatus[$archivePath] = "Failed"
+                    }
+                }
+                ".tar" {
+                    if (Get-Command tar -ErrorAction SilentlyContinue) {
+                        tar -xf $archivePath -C $destPath
+                        $global:ArchivesStatus[$archivePath] = "Success"
+                    }
+                    else {
+                        Write-Log "No tar utility found for $archivePath."
+                        $global:ArchivesStatus[$archivePath] = "Failed"
+                    }
+                }
+                default {
+                    Write-Log "Unsupported archive type: $ext for file $archivePath."
+                    $global:ArchivesStatus[$archivePath] = "Failed"
+                }
+            }
+        }
+        catch {
+            Write-Log "Exception extracting $archivePath $_"
+            $global:ArchivesStatus[$archivePath] = "Failed"
+        }
+        Invoke-Appstatus -WingetStatus @{} -LocalStatus @{} -ArchiveStatus $global:ArchivesStatus
     }
 }
 
@@ -431,28 +386,21 @@ function Invoke-Archives {
 #region Commands Execution
 
 function Invoke-Commands {
-    <#
-    .SYNOPSIS
-        Executes command strings from the [Commands] section.
-    .EXAMPLE
-        Invoke-Commands -CommandsSection $config.Commands
-    #>
     param(
-        [Parameter(Mandatory=$true)][hashtable]$CommandsSection
+        [hashtable]$CommandsSection
     )
-    Write-PKitLog "Executing commands from [Commands] section..."
+    Write-Log "Executing commands from [Commands] section..."
     foreach ($key in $CommandsSection.Keys) {
         $cmd = $CommandsSection[$key]
         if ([string]::IsNullOrEmpty($cmd)) { continue }
-        Write-PKitLog "Executing command [$key]: $cmd"
+        Write-Log "Executing command [$key]: $cmd"
         try {
-            # While Invoke-Expression raises warnings, it is used by design.
             Invoke-Expression $cmd
-            $script:CommandSuccesses++
+            $global:CommandSuccesses++
         }
         catch {
-            Write-PKitLog "Command [$key] failed: $_"
-            $script:CommandFailures++
+            Write-Log "Command [$key] failed: $_"
+            $global:CommandFailures++
         }
         Invoke-CommandsStatus
     }
@@ -463,24 +411,18 @@ function Invoke-Commands {
 #region Final Summary
 
 function Invoke-Summary {
-    <#
-    .SYNOPSIS
-        Presents the final summary of the onboarding process.
-    .EXAMPLE
-        Invoke-Summary -StartTime $ScriptStart -EndTime (Get-Date)
-    #>
     param(
-        [Parameter(Mandatory=$true)][datetime]$StartTime,
-        [Parameter(Mandatory=$true)][datetime]$EndTime
+        [datetime]$StartTime,
+        [datetime]$EndTime
     )
     $duration = New-TimeSpan -Start $StartTime -End $EndTime
-    Write-PKitLog "Onboarding complete. Duration: $($duration.ToString())"
+    Write-Log "Onboarding complete. Duration: $($duration.ToString())"
     Write-Host "Final WingetApps Status:" -ForegroundColor Cyan
-    Invoke-AppStatus -WingetStatus $script:WingetAppsStatus -LocalStatus @{} -ArchiveStatus @{}
+    Invoke-Appstatus -WingetStatus $global:WingetAppsStatus -LocalStatus @{} -ArchiveStatus @{}
     Write-Host "Final Local Apps Status:" -ForegroundColor Cyan
-    Invoke-AppStatus -WingetStatus @{} -LocalStatus $script:LocalAppsStatus -ArchiveStatus @{}
+    Invoke-Appstatus -WingetStatus @{} -LocalStatus $global:LocalAppsStatus -ArchiveStatus @{}
     Write-Host "Final Archives Extraction Status:" -ForegroundColor Cyan
-    Invoke-AppStatus -WingetStatus @{} -LocalStatus @{} -ArchiveStatus $script:ArchivesStatus
+    Invoke-Appstatus -WingetStatus @{} -LocalStatus @{} -ArchiveStatus $global:ArchivesStatus
     Write-Host "Commands Execution Status:" -ForegroundColor Cyan
     Invoke-CommandsStatus
 }
@@ -490,86 +432,76 @@ function Invoke-Summary {
 #region Main Entry: Start-Onboarding
 
 function Start-Onboarding {
-    <#
-    .SYNOPSIS
-        Begins the onboarding process.
-    .DESCRIPTION
-        Reads the provided company config.ini, sets up folders and logging, then processes
-        Winget apps, local apps, compressed files, and commands.
-    .EXAMPLE
-        Start-Onboarding -CompanyIni "C:\MyWorkingDir\configs\MyCompany\config.ini"
-    #>
-    [CmdletBinding(SupportsShouldProcess=$true)]
+    [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)][string]$CompanyIni
+        [Parameter(Mandatory=$true)]
+        [string]$CompanyIni
     )
     try {
-        $script:ScriptStart = Get-Date
+        $global:ScriptStart = Get-Date
 
-        Write-PKitLog "Parsing configuration file: $CompanyIni"
+        Write-Log "Parsing configuration file: $CompanyIni"
         $config = Convert-IniToHashtable -Path $CompanyIni
 
-        # Derive the working directory from the config file; fallback if needed.
+        # Derive WorkingDir from the CompanyIni file path.
         $configsDir = Split-Path $CompanyIni -Parent
-        $script:WorkingDir = Split-Path $configsDir -Parent
-        if ([string]::IsNullOrWhiteSpace($script:WorkingDir)) {
-            $script:WorkingDir = (Get-Location).Path
-        }
-        Write-PKitLog "Working Directory determined: $script:WorkingDir"
+        $global:WorkingDir = Split-Path $configsDir -Parent
 
-        # Create logs folder under WorkingDir.
-        $logsDir = Join-Path $script:WorkingDir "logs"
+        # Fallback if $global:WorkingDir is empty.
+        if ([string]::IsNullOrEmpty($global:WorkingDir)) {
+            $global:WorkingDir = Get-Location
+        }
+        Write-Log "Working Directory determined: $global:WorkingDir"
+        $logsDir = Join-Path $global:WorkingDir "logs"
         if (-not (Test-Path $logsDir)) { New-Item -ItemType Directory -Path $logsDir | Out-Null }
         $timestamp = Get-Date -Format "yyyy-MM-dd_HHmm"
-        $script:LogFile = Join-Path $logsDir "Onboarding_$timestamp.log"
-        Write-PKitLog "Log file created: $script:LogFile"
-
-        # Create installers folder under WorkingDir.
-        $installersUniversal = Join-Path $script:WorkingDir "installers\universal"
+        $global:LogFile = Join-Path $logsDir "Onboarding_$timestamp.log"
+        Write-Log "Log file created: $global:LogFile"
+        $installersUniversal = Join-Path $global:WorkingDir "installers\universal"
         if (-not (Test-Path $installersUniversal)) { New-Item -ItemType Directory -Path $installersUniversal -Force | Out-Null }
-        $script:UniversalInstallersDir = $installersUniversal
-        Write-PKitLog "Universal Installers directory: $script:UniversalInstallersDir"
+        $global:UniversalInstallersDir = $installersUniversal
+        Write-Log "Universal Installers directory: $global:UniversalInstallersDir"
         
         if ($config.General.bannerLocation) {
             Invoke-Banner -BannerPath $config.General.bannerLocation
         }
         else {
-            Write-PKitLog "No bannerLocation specified in [General]."
+            Write-Log "No bannerLocation specified in [General]."
         }
         
         if ($config.WingetApps) {
             Install-WingetApps -WingetSection $config.WingetApps
         }
         else {
-            Write-PKitLog "No [WingetApps] section found."
+            Write-Log "No [WingetApps] section found."
         }
         
         if ($config.Apps) {
             Install-LocalApps -AppsSection $config.Apps
         }
         else {
-            Write-PKitLog "No [Apps] section found."
+            Write-Log "No [Apps] section found."
         }
         
         if ($config.'Compressed Files') {
             Invoke-Archives -ArchivesSection $config.'Compressed Files'
         }
         else {
-            Write-PKitLog "No [Compressed Files] section found."
+            Write-Log "No [Compressed Files] section found."
         }
         
         if ($config.Commands) {
             Invoke-Commands -CommandsSection $config.Commands
         }
         else {
-            Write-PKitLog "No [Commands] section found."
+            Write-Log "No [Commands] section found."
         }
         
-        $script:ScriptEnd = Get-Date
-        Invoke-Summary -StartTime $script:ScriptStart -EndTime $script:ScriptEnd
+        $global:ScriptEnd = Get-Date
+        Invoke-Summary -StartTime $global:ScriptStart -EndTime $global:ScriptEnd
     }
     catch {
-        Write-PKitLog "Onboarding process terminated with error: $_"
+        Write-Log "Onboarding process terminated with error: $_"
     }
 }
 

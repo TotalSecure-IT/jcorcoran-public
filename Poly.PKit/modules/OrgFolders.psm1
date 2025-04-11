@@ -1,60 +1,43 @@
-<#
-.SYNOPSIS
-    Replicates remote organization subfolders locally.
-.DESCRIPTION
-    Retrieves the GitHub tree for the given organization folder SHA and creates local folders.
-    Updates live stats about discovered folders and downloaded submenu files.
-.EXAMPLE
-    Update-OrgFolder -workingDir "C:\MyWorkingDir" -mode "ONLINE" -owner "TotalSecure-IT" `
-      -repo "jcorcoran-public" -token "mytoken" -orgsFolderSha "8b8cde2fe87d2155653ddbdaa7530e01b84047bf" `
-      -primaryLogFilePath "C:\MyWorkingDir\logs\MyHost.log"
-#>
+# Global counters for stats
+$global:OrgFoldersDiscovered  = 0
+$global:OrgFoldersSkipped     = 0
+$global:MenuFilesDiscovered   = 0
 
-#region Script-Scope Variables
-# Instead of global variables, we use script scope:
-$script:OrgFoldersDiscovered    = 0
-$script:OrgFoldersSkipped       = 0
-$script:MenuFilesDiscovered     = 0
-$script:StatsTableLine          = $null
-#endregion Script-Scope Variables
+# We'll store the console line at which to print the stats.
+# We'll set this after printing the "Using orgsFolderSha=..." line.
+$global:StatsTableLine = $null
 
-function Refresh-LiveStat {
-    <#
-    .SYNOPSIS
-        Updates the live console stats.
-    .DESCRIPTION
-        Writes out counts for discovered folders, menu files, and skipped folders.
-    #>
-    if (-not $script:StatsTableLine) { return }
+function Refresh-LiveStats {
+    # If we haven't set $StatsTableLine yet, do nothing
+    if (-not $global:StatsTableLine) { return }
+
+    # Start drawing from (X=0, Y=$StatsTableLine)
     $startX = 0
-    $startY = $script:StatsTableLine
+    $startY = $global:StatsTableLine
+
+    # Save current cursor position so we can restore it after drawing.
     $oldPos = $Host.UI.RawUI.CursorPosition
 
-    $Host.UI.RawUI.CursorPosition = [System.Management.Automation.Host.Coordinates]::new($startX, $startY)
+    # Move cursor & write line 1
+    $Host.UI.RawUI.CursorPosition = [System.Management.Automation.Host.Coordinates]::new($startX,$startY)
     Write-Host "Organization Folders discovered: " -NoNewLine -ForegroundColor White
-    Write-Host $script:OrgFoldersDiscovered -ForegroundColor Green
+    Write-Host $global:OrgFoldersDiscovered -ForegroundColor Green
 
-    $Host.UI.RawUI.CursorPosition = [System.Management.Automation.Host.Coordinates]::new($startX, $startY + 1)
+    # Move cursor & write line 2
+    $Host.UI.RawUI.CursorPosition = [System.Management.Automation.Host.Coordinates]::new($startX,$startY + 1)
     Write-Host "Menu files discovered:          " -NoNewLine -ForegroundColor White
-    Write-Host $script:MenuFilesDiscovered -ForegroundColor Green
+    Write-Host $global:MenuFilesDiscovered -ForegroundColor Green
 
-    $Host.UI.RawUI.CursorPosition = [System.Management.Automation.Host.Coordinates]::new($startX, $startY + 2)
+    # Move cursor & write line 3
+    $Host.UI.RawUI.CursorPosition = [System.Management.Automation.Host.Coordinates]::new($startX,$startY + 2)
     Write-Host "Organization Folders skipped:   " -NoNewLine -ForegroundColor White
-    Write-Host $script:OrgFoldersSkipped -ForegroundColor Green
+    Write-Host $global:OrgFoldersSkipped -ForegroundColor Green
 
+    # Restore cursor position to where it was
     $Host.UI.RawUI.CursorPosition = $oldPos
 }
 
-function Get-OrgFolderTree {
-    <#
-    .SYNOPSIS
-        Retrieves GitHub tree data for the organization folder.
-    .DESCRIPTION
-        Uses provided owner, repo, token, and SHA to retrieve the GitHub tree.
-    .EXAMPLE
-        $tree = Get-OrgFolderTree -owner "TotalSecure-IT" -repo "jcorcoran-public" `
-          -token "mytoken" -orgsFolderSha "..."
-    #>
+function Get-OrgsFolderTree {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)][string]$owner,
@@ -62,11 +45,22 @@ function Get-OrgFolderTree {
         [Parameter(Mandatory=$true)][string]$token,
         [Parameter(Mandatory=$true)][string]$orgsFolderSha
     )
+    <#
+      Fetches top-level items for Orgs folder from known tree SHA.
+      We only use items of type=tree to replicate subfolders.
+    #>
+
     $headers = @{
         Authorization = "token $token"
         Accept        = "application/vnd.github+json"
     }
     $url = "https://api.github.com/repos/$owner/$repo/git/trees/$orgsFolderSha"
+
+    # If you want to log to JSON debug:
+    if ($Global:JsonLogFilePath) {
+        Write-JsonDebug -message "GET OrgsFolderTree -> $url" -jsonLogFilePath $Global:JsonLogFilePath
+    }
+
     try {
         $response = Invoke-WebRequest -Uri $url -Headers $headers -Method GET -ErrorAction Stop
         $treeData = $response.Content | ConvertFrom-Json
@@ -74,58 +68,24 @@ function Get-OrgFolderTree {
             return $treeData.tree
         }
         else {
-            Write-Error "Tree data not found or empty for SHA: $orgsFolderSha"
+            Write-Error "Tree data not found or empty for Orgs folder SHA: $orgsFolderSha"
             return $null
         }
     }
     catch {
-        Write-Error "Failed to retrieve OrgFolder tree: $_"
+        Write-Error "Failed to retrieve Orgs folder tree: $_"
+        if ($Global:JsonLogFilePath) {
+            Write-JsonDebug -message "Failed to retrieve Orgs folder tree: $_" -jsonLogFilePath $Global:JsonLogFilePath
+        }
         return $null
     }
 }
 
-function Update-OrgFolder {
-    <#
-    .SYNOPSIS
-        Creates a local folder for an organization item.
-    .DESCRIPTION
-        Creates the folder if it does not exist; increments counters appropriately.
-    .EXAMPLE
-        Update-OrgFolder -orgPath "C:\MyWorkingDir\orgs\MyOrg" -primaryLogFilePath "C:\MyWorkingDir\logs\log.txt"
-    #>
-    param(
-        [Parameter(Mandatory=$true)][string]$orgPath,
-        [Parameter(Mandatory=$false)][string]$primaryLogFilePath
-    )
-    if (-not (Test-Path $orgPath)) {
-        $script:OrgFoldersDiscovered++
-        Refresh-LiveStat
-        New-Item -ItemType Directory -Path $orgPath | Out-Null
-        if ($primaryLogFilePath) {
-            Write-Log "Created org folder: $orgPath" -logFilePath $primaryLogFilePath
-        }
-    }
-    else {
-        $script:OrgFoldersSkipped++
-        Refresh-LiveStat
-    }
-}
-
 function Update-OrgFolders {
-    <#
-    .SYNOPSIS
-        Replicates organization subfolders from GitHub.
-    .DESCRIPTION
-        Retrieves the tree using Get-OrgFolderTree, creates local folders,
-        and attempts to download submenu.txt files.
-    .EXAMPLE
-        Update-OrgFolders -workingDir "C:\MyWorkingDir" -mode "ONLINE" -owner "TotalSecure-IT" `
-          -repo "jcorcoran-public" -token "mytoken" -orgsFolderSha "..." -primaryLogFilePath "C:\MyWorkingDir\logs\log.txt"
-    #>
-    [CmdletBinding(SupportsShouldProcess=$true)]
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)][string]$workingDir,
-        [Parameter(Mandatory=$true)][ValidateSet("ONLINE", "CACHED")][string]$mode,
+        [Parameter(Mandatory=$true)][ValidateSet("ONLINE","CACHED")][string]$mode,
         [Parameter(Mandatory=$true)][string]$owner,
         [Parameter(Mandatory=$true)][string]$repo,
         [Parameter(Mandatory=$true)][string]$token,
@@ -134,47 +94,85 @@ function Update-OrgFolders {
     )
 
     if ($mode -ne "ONLINE") {
-        Write-Host "CACHED mode not implemented. Exiting..." -ForegroundColor Yellow
+        Write-Host "CACHED mode not implemented. Exiting..."
         return
     }
 
     Write-Host "Using orgsFolderSha='$orgsFolderSha' to replicate subfolders..."
-    $script:StatsTableLine = $Host.UI.RawUI.CursorPosition.Y + 1
-    Refresh-LiveStat
+    # Store the line at which we'll start drawing the stats table
+    $global:StatsTableLine = $Host.UI.RawUI.CursorPosition.Y + 1
 
-    $orgsItems = Get-OrgFolderTree -owner $owner -repo $repo -token $token -orgsFolderSha $orgsFolderSha
+    Refresh-LiveStats  # initial blank stats
+
+    # 1) get top-level Orgs folder items
+    $orgsItems = Get-OrgsFolderTree -owner $owner -repo $repo -token $token -orgsFolderSha $orgsFolderSha
     if (-not $orgsItems) {
-        Write-Error "No subfolders found in OrgFolders for SHA: $orgsFolderSha"
+        Write-Error "No subfolders found under Orgs. Exiting..."
         return
     }
 
+    # Ensure local 'orgs' folder
     $orgsRoot = Join-Path $workingDir "orgs"
     if (-not (Test-Path $orgsRoot)) {
         New-Item -ItemType Directory -Path $orgsRoot | Out-Null
     }
 
+    # 2) For each subfolder -> create local folder, then attempt submenu.txt
     foreach ($item in $orgsItems) {
         if ($item.type -eq "tree") {
+            # subfolder name
             $subLocalFolder = Join-Path $orgsRoot $item.path
-            Update-OrgFolder -orgPath $subLocalFolder -primaryLogFilePath $primaryLogFilePath
+            if (-not (Test-Path $subLocalFolder)) {
+                $global:OrgFoldersDiscovered++
+                Refresh-LiveStats
 
+                New-Item -ItemType Directory -Path $subLocalFolder | Out-Null
+                if ($primaryLogFilePath) {
+                    Write-Log -message "Created org folder: $subLocalFolder" -logFilePath $primaryLogFilePath
+                }
+            }
+            else {
+                $global:OrgFoldersSkipped++
+                Refresh-LiveStats
+            }
+
+            # Attempt to download submenu.txt from raw GitHub
             $localSubmenu = Join-Path $subLocalFolder "submenu.txt"
             if (-not (Test-Path $localSubmenu)) {
                 $rawSubmenuUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/Orgs/$($item.path)/submenu.txt"
+                
+                # Log the attempt in JSON debug
+                if ($Global:JsonLogFilePath) {
+                    Write-JsonDebug -message "Trying GET $rawSubmenuUrl" -jsonLogFilePath $Global:JsonLogFilePath
+                }
+
                 try {
                     Invoke-WebRequest -Uri $rawSubmenuUrl -OutFile $localSubmenu -UseBasicParsing -ErrorAction Stop
-                    $script:MenuFilesDiscovered++
-                    Refresh-LiveStat
+                    $global:MenuFilesDiscovered++
+                    Refresh-LiveStats
+
                     if ($primaryLogFilePath) {
-                        Write-Log "Downloaded submenu.txt for $($item.path)" -logFilePath $primaryLogFilePath
+                        Write-Log -message "Downloaded submenu.txt for $($item.path)" -logFilePath $primaryLogFilePath
                     }
                 }
                 catch {
-                    Write-Error "Failed to download submenu.txt for $($item.path): $_"
+                    # Probably 404 (or other error)
                 }
             }
         }
     }
 }
 
-Export-ModuleMember -Function Update-OrgFolders, Get-OrgFolderTree, Refresh-LiveStat
+function Sync-OrgFolderContents {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)][string]$workingDir,
+        [Parameter(Mandatory=$true)][string]$orgRelativePath,
+        [Parameter(Mandatory=$true)][string]$owner,
+        [Parameter(Mandatory=$true)][string]$repo,
+        [Parameter(Mandatory=$true)][string]$token
+    )
+    Write-Host "Sync-OrgFolderContents is not fully implemented here."
+}
+
+Export-ModuleMember -Function Update-OrgFolders, Sync-OrgFolderContents

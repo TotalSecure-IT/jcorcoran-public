@@ -11,12 +11,23 @@ Clear-Host
 #------------------------------------------------------------------
 # Set Working Directories
 #------------------------------------------------------------------
+# Ensure $PSScriptRoot is defined (it will be when the script is run as a file,
+# but if not—such as in the ISE or when run interactively—fall back to Get-Location)
 if (-not $PSScriptRoot) {
     $PSScriptRoot = Get-Location
 }
+
+# Derive the working directory from $PSScriptRoot.
+# Assuming your main.ps1 is located in the "init" folder,
+# the working directory is its parent.
 $workingDir = Split-Path -Parent $PSScriptRoot
 
-Set-Location $workingDir
+# Fallback in case Split-Path returns an empty string.
+if ([string]::IsNullOrWhiteSpace($workingDir)) {
+    $workingDir = Get-Location
+}
+
+Write-Host "Working Directory set to: $workingDir" -ForegroundColor Green
 
 # init folder is where main.ps1 resides.
 $initDir = $PSScriptRoot

@@ -155,18 +155,18 @@ function Show-MainMenuLoop {
         $menuItems = $folders + "Quit"
         # Call our new scrolling menu function with customizable settings.
         $settings = @{
-            StartRow             = 5
+            StartRow             = 1
             StartColumn          = 0
-            VisibleRows          = 10
+            VisibleRows          = 5
             SelectionBarText     = ">>"
-            SelectedForeground   = "Black"
-            SelectedBackground   = "Yellow"
-            UnselectedForeground = "White"
+            SelectedForeground   = "White"
+            SelectedBackground   = "Red"
+            UnselectedForeground = "Yellow"
             UnselectedBackground = "Black"
-            TopMargin            = 1
-            BottomMargin         = 1
-            FontSize             = 16
-            LineSpacing          = 0
+            TopMargin            = 2
+            BottomMargin         = 2
+            FontSize             = 20
+            LineSpacing          = 1
         }
         $selectedIndex = Show-MainMenu -MenuItems $menuItems -Settings $settings
         if ($selectedIndex -eq ($menuItems.Count - 1)) {

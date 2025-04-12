@@ -2,15 +2,15 @@
 .SYNOPSIS
     Automates the onboarding process using a company-specific config.ini.
 .DESCRIPTION
-    Parses the config.ini (supplied via -CompanyIni) to drive onboarding tasks:
-      - Retrieves settings from sections [General], [Credentials], [WingetApps], [Apps],
-        [Compressed Files], and [Commands].
-      - Downloads and installs applications (via winget and local installers).
-      - Extracts compressed files.
-      - Executes designated commands.
-      - Provides live, colored status updates and logs all actions.
+    This module reads the given config.ini (passed via -CompanyIni) and performs:
+      • Config parsing (supports sections: [General], [Credentials], [WingetApps], [Apps],
+        [Compressed Files], and [Commands])
+      • Downloading & silent installation of applications via winget as well as local installers
+      • Extraction of compressed files
+      • Execution of command strings from the [Commands] section
+      • Live, colored status updates and logging (non-interactive)
 .EXAMPLE
-    Start-Onboarding -CompanyIni "C:\MyWorkingDir\configs\MyCompany\config.ini"
+    Start-Onboarding -CompanyIni "C:\Users\isupport\Desktop\test\configs\OCCK\config.ini"
 #>
 
 #region Global Variables & Logging
@@ -28,7 +28,7 @@ $script:UniversalInstallersDir = $null
 function Write-PKitLog {
     <#
     .SYNOPSIS
-        Writes a timestamped log entry.
+         Writes a timestamped log entry.
     #>
     param(
         [Parameter(Mandatory=$true)][string]$Message
@@ -48,11 +48,11 @@ function Write-PKitLog {
 function Convert-IniToHashtable {
     <#
     .SYNOPSIS
-        Converts an INI file to a hashtable.
+         Converts an INI file to a hashtable.
     .DESCRIPTION
-        Reads the INI file located at the specified path and returns a nested hashtable.
+         Reads the INI file at the given path and builds a nested hashtable.
     .EXAMPLE
-        $config = Convert-IniToHashtable -Path "C:\MyWorkingDir\configs\MyCompany\config.ini"
+         $config = Convert-IniToHashtable -Path "C:\Path\config.ini"
     #>
     param(
         [Parameter(Mandatory=$true)][string]$Path
@@ -90,9 +90,9 @@ function Convert-IniToHashtable {
 function Invoke-Banner {
     <#
     .SYNOPSIS
-        Displays the banner file with color.
+         Displays a banner file with color.
     .EXAMPLE
-        Invoke-Banner -BannerPath "C:\MyWorkingDir\configs\MyCompany\banner.txt"
+         Invoke-Banner -BannerPath "C:\Path\banner.txt"
     #>
     param(
         [Parameter(Mandatory=$true)][string]$BannerPath
@@ -113,7 +113,7 @@ function Invoke-Banner {
 function Invoke-AppStatus {
     <#
     .SYNOPSIS
-        Displays the installation status for apps.
+         Displays app installation statuses.
     #>
     param(
         [hashtable]$WingetStatus,
@@ -145,7 +145,7 @@ function Invoke-AppStatus {
 function Invoke-CommandsStatus {
     <#
     .SYNOPSIS
-        Displays the command execution status as "[ failures | successes ]".
+         Displays command execution status as “[ failures | successes ]”.
     #>
     $failStr = "$script:CommandFailures"
     $succStr = "$script:CommandSuccesses"
@@ -163,11 +163,12 @@ function Invoke-CommandsStatus {
 function Install-WingetApp {
     <#
     .SYNOPSIS
-        Installs one Winget application.
+         Installs a single Winget application.
     .DESCRIPTION
-        Retrieves installer URL using winget, downloads the installer to the universal folder, and executes it silently.
+         Uses winget show to retrieve the installer URL, downloads the installer to the universal folder,
+         and silently runs the installer.
     .EXAMPLE
-        Install-WingetApp -AppName "Google.Chrome" -AppVersion "" -AppArgs "/qn"
+         Install-WingetApp -AppName "Google.Chrome" -AppVersion "" -AppArgs "/qn"
     #>
     param(
         [Parameter(Mandatory=$true)][string]$AppName,
@@ -198,7 +199,7 @@ function Install-WingetApp {
         $script:WingetAppsStatus[$AppName] = "Failed"
         return
     }
-    Write-PKitLog "Found installer URL for $AppName $installerUrl"
+    Write-PKitLog "Found installer URL for $AppName: $installerUrl"
     $filename = Split-Path $installerUrl -Leaf
     $destinationPath = Join-Path $script:UniversalInstallersDir $filename
     if (-not (Test-Path $destinationPath)) {
@@ -225,7 +226,7 @@ function Install-WingetApp {
         }
     }
     catch {
-        Write-PKitLog "Exception during installation of $AppName $_"
+        Write-PKitLog "Exception during installation of $AppName: $_"
         $script:WingetAppsStatus[$AppName] = "Failed"
     }
     Invoke-AppStatus -WingetStatus $script:WingetAppsStatus -LocalStatus @{} -ArchiveStatus @{}
@@ -234,9 +235,9 @@ function Install-WingetApp {
 function Install-WingetApps {
     <#
     .SYNOPSIS
-        Processes all Winget apps defined in the config.
+         Processes all Winget apps as defined in the config.
     .EXAMPLE
-        Install-WingetApps -WingetSection $config.WingetApps
+         Install-WingetApps -WingetSection $config.WingetApps
     #>
     param(
         [Parameter(Mandatory=$true)][hashtable]$WingetSection
@@ -262,12 +263,13 @@ function Install-WingetApps {
 function Install-LocalApp {
     <#
     .SYNOPSIS
-        Installs one local app.
+         Installs a single local application.
     .DESCRIPTION
-        Checks if the app is installed (via CheckPath), then runs the installer from the local source.
+         Checks if the application is already installed via AppCheckPath,
+         then runs the installer from the local source.
     .EXAMPLE
-        Install-LocalApp -AppName "VSA X" -AppSource "C:\Installers\agent.msi" `
-          -AppArgs "/qn" -AppCheckPath "C:\Program Files\VSA X\app.exe"
+         Install-LocalApp -AppName "VSA X" -AppSource "C:\Installers\agent.msi" `
+            -AppArgs "/qn" -AppCheckPath "C:\Program Files\VSA X\app.exe"
     #>
     param(
         [Parameter(Mandatory=$true)][string]$AppName,
@@ -299,7 +301,7 @@ function Install-LocalApp {
         }
     }
     catch {
-        Write-PKitLog "Exception during installation of $AppName $_"
+        Write-PKitLog "Exception during installation of $AppName: $_"
         $script:LocalAppsStatus[$AppName] = "Failed"
     }
     Invoke-AppStatus -WingetStatus @{} -LocalStatus $script:LocalAppsStatus -ArchiveStatus @{}
@@ -308,9 +310,9 @@ function Install-LocalApp {
 function Install-LocalApps {
     <#
     .SYNOPSIS
-        Processes all local apps defined in the config.
+         Processes all local apps from the config.
     .EXAMPLE
-        Install-LocalApps -AppsSection $config.Apps
+         Install-LocalApps -AppsSection $config.Apps
     #>
     param(
         [Parameter(Mandatory=$true)][hashtable]$AppsSection
@@ -337,11 +339,11 @@ function Install-LocalApps {
 function Invoke-Archive {
     <#
     .SYNOPSIS
-        Extracts one archive file.
+         Extracts a single archive file.
     .DESCRIPTION
-        Based on the extension (.zip, .rar, .7z, .tar), extracts the file to the destination.
+         Based on the file extension (.zip, .rar, .7z, .tar), extracts the archive to the destination.
     .EXAMPLE
-        Invoke-Archive -ArchivePath "C:\Installers\app.zip" -DestinationPath "C:\Extracted"
+         Invoke-Archive -ArchivePath "C:\Installers\app.zip" -DestinationPath "C:\Extracted"
     #>
     param(
         [Parameter(Mandatory=$true)][string]$ArchivePath,
@@ -398,7 +400,7 @@ function Invoke-Archive {
         }
     }
     catch {
-        Write-PKitLog "Exception extracting $ArchivePath $_"
+        Write-PKitLog "Exception extracting $ArchivePath: $_"
         $script:ArchivesStatus[$ArchivePath] = "Failed"
     }
     Invoke-AppStatus -WingetStatus @{} -LocalStatus @{} -ArchiveStatus $script:ArchivesStatus
@@ -407,9 +409,9 @@ function Invoke-Archive {
 function Invoke-Archives {
     <#
     .SYNOPSIS
-        Processes all compressed files defined in the config.
+         Processes all compressed files defined in the config.
     .EXAMPLE
-        Invoke-Archives -ArchivesSection $config.'Compressed Files'
+         Invoke-Archives -ArchivesSection $config.'Compressed Files'
     #>
     param(
         [Parameter(Mandatory=$true)][hashtable]$ArchivesSection
@@ -433,9 +435,9 @@ function Invoke-Archives {
 function Invoke-Commands {
     <#
     .SYNOPSIS
-        Executes command strings from the [Commands] section.
+         Executes command strings from the [Commands] section.
     .EXAMPLE
-        Invoke-Commands -CommandsSection $config.Commands
+         Invoke-Commands -CommandsSection $config.Commands
     #>
     param(
         [Parameter(Mandatory=$true)][hashtable]$CommandsSection
@@ -446,7 +448,7 @@ function Invoke-Commands {
         if ([string]::IsNullOrEmpty($cmd)) { continue }
         Write-PKitLog "Executing command [$key]: $cmd"
         try {
-            # While Invoke-Expression raises warnings, it is used by design.
+            # Invoke-Expression is used by design.
             Invoke-Expression $cmd
             $script:CommandSuccesses++
         }
@@ -465,9 +467,9 @@ function Invoke-Commands {
 function Invoke-Summary {
     <#
     .SYNOPSIS
-        Presents the final summary of the onboarding process.
+         Presents the final summary of the onboarding process.
     .EXAMPLE
-        Invoke-Summary -StartTime $ScriptStart -EndTime (Get-Date)
+         Invoke-Summary -StartTime $ScriptStart -EndTime (Get-Date)
     #>
     param(
         [Parameter(Mandatory=$true)][datetime]$StartTime,
@@ -492,12 +494,12 @@ function Invoke-Summary {
 function Start-Onboarding {
     <#
     .SYNOPSIS
-        Begins the onboarding process.
+         Begins the onboarding process.
     .DESCRIPTION
-        Reads the provided company config.ini, sets up folders and logging, then processes
-        Winget apps, local apps, compressed files, and commands.
+         Reads the provided company config.ini, creates required folders (logs, installers),
+         then processes Winget apps, local apps, compressed files, and commands.
     .EXAMPLE
-        Start-Onboarding -CompanyIni "C:\MyWorkingDir\configs\MyCompany\config.ini"
+         Start-Onboarding -CompanyIni "C:\Users\isupport\Desktop\test\configs\OCCK\config.ini"
     #>
     [CmdletBinding(SupportsShouldProcess=$true)]
     param(
@@ -505,26 +507,27 @@ function Start-Onboarding {
     )
     try {
         $script:ScriptStart = Get-Date
-
         Write-PKitLog "Parsing configuration file: $CompanyIni"
         $config = Convert-IniToHashtable -Path $CompanyIni
 
-        # Derive the working directory from the config file; fallback if needed.
-        $configsDir = Split-Path $CompanyIni -Parent
-        $script:WorkingDir = Split-Path $configsDir -Parent
-        if ([string]::IsNullOrWhiteSpace($script:WorkingDir)) {
-            $script:WorkingDir = (Get-Location).Path
+        # Derive working directory: if $CompanyIni has '\configs\' then extract text before it.
+        if ($CompanyIni -match "^(.*?)[\\/]configs[\\/].*$") {
+            $script:WorkingDir = $matches[1]
+        }
+        else {
+            $script:WorkingDir = Split-Path $CompanyIni -Parent
         }
         Write-PKitLog "Working Directory determined: $script:WorkingDir"
 
-        # Create logs folder under WorkingDir.
-        $logsDir = Join-Path $script:WorkingDir "logs"
+        # Create logs folder under WorkingDir\logs\$hostname.
+        $hostname = $env:COMPUTERNAME
+        $logsDir = Join-Path $script:WorkingDir "logs\$hostname"
         if (-not (Test-Path $logsDir)) { New-Item -ItemType Directory -Path $logsDir | Out-Null }
         $timestamp = Get-Date -Format "yyyy-MM-dd_HHmm"
         $script:LogFile = Join-Path $logsDir "Onboarding_$timestamp.log"
         Write-PKitLog "Log file created: $script:LogFile"
 
-        # Create installers folder under WorkingDir.
+        # Create installers folder under WorkingDir\installers\universal.
         $installersUniversal = Join-Path $script:WorkingDir "installers\universal"
         if (-not (Test-Path $installersUniversal)) { New-Item -ItemType Directory -Path $installersUniversal -Force | Out-Null }
         $script:UniversalInstallersDir = $installersUniversal

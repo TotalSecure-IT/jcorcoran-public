@@ -1,289 +1,142 @@
 <#
 .SYNOPSIS
-    Provides an interactive menu and submenu system.
+    Provides a fully customizable interactive menu and submenu system.
 .DESCRIPTION
-    Reads subfolders under the designated orgs folder and displays an interactive
-    menu. On selection, retrieves and displays submenu items.
+    The menu displays a list of items with a fixed selection marker (the marker remains in a fixed position) while the list scrolls.
+    Customizable parameters include starting row/column, number of visible rows, colors for selected and unselected items,
+    and margins. The menu wraps around at the ends.
 .EXAMPLE
-    Show-MainMenuLoop -workingDir "C:\MyWorkingDir"
+    $menuSettings = @{
+         StartRow                = 5
+         StartColumn             = 0
+         VisibleRows             = 10
+         SelectionBarText        = ">>"
+         SelectedForeground      = "Black"
+         SelectedBackground      = "Yellow"
+         UnselectedForeground    = "White"
+         UnselectedBackground    = "Black"
+         TopMargin               = 1
+         BottomMargin            = 1
+         FontSize                = 16    # (This parameter is informational; adjusting font size may require host-specific methods)
+         LineSpacing             = 0     # (Additional empty lines between items)
+    }
+    $selectedIndex = Show-MainMenu -MenuItems (Get-ChildItem "C:\MyWorkingDir\orgs" -Directory | Select-Object -ExpandProperty Name) -Settings $menuSettings
 #>
 
-#region Script-Scope Global Settings
-$script:MenuStartRow = 5
-$script:MenuStartColumn = 0
-$script:MenuDefaultForeground = "White"
-$script:MenuHighlightForeground = "Black"
-$script:MenuHighlightBackground = "Yellow"
-$script:SubmenuDefaultForeground = "Gray"
-$script:SubmenuHighlightForeground = "Yellow"
-$script:SubmenuHighlightBackground = "Black"
-#endregion Script-Scope Global Settings
-
-# If your environment has "Write-Log" or "Write-MainLog" for logging,
-# define whichever you prefer. We'll define a small helper:
-function Write-MainLog {
-    param([string]$message)
-    # Adjust to your logging logic. For demonstration:
-    Write-Host "[LOG] $message" -ForegroundColor Cyan
+#region Global Menu Settings (default values used if not overridden)
+$script:DefaultMenuSettings = @{
+    StartRow             = 5
+    StartColumn          = 0
+    VisibleRows          = 10
+    SelectionBarText     = ">>"
+    SelectedForeground   = "Black"
+    SelectedBackground   = "Yellow"
+    UnselectedForeground = "White"
+    UnselectedBackground = "Black"
+    TopMargin            = 1
+    BottomMargin         = 1
+    FontSize             = 16
+    LineSpacing          = 0
 }
+#endregion
 
-# ------------------------------------------------------------
-# Function: Get-Submenu
-# Retrieve & parse a remote submenu.txt from Poly.PKit/Orgs/<companyName>
-# using the snippet logic. If you want to read from local, adapt accordingly.
-# ------------------------------------------------------------
-function Get-Submenu {
+function Show-MainMenu {
+    <#
+    .SYNOPSIS
+         Displays a scrollable menu with a fixed selection bar.
+    .DESCRIPTION
+         Returns the index (0-based) of the selected item.
+    .PARAMETER MenuItems
+         An array of strings representing the menu items.
+    .PARAMETER Settings
+         A hashtable of settings to customize the menu appearance (see default values).
+    .EXAMPLE
+         $index = Show-MainMenu -MenuItems $items -Settings $menuSettings
+    #>
     param(
-        [Parameter(Mandatory=$true)]
-        [string]$companyName
+        [Parameter(Mandatory=$true)][string[]]$MenuItems,
+        [hashtable]$Settings = $script:DefaultMenuSettings
     )
-    # We'll fetch from the raw GitHub location for this org's submenu.txt
-    $submenuUrl = "https://raw.githubusercontent.com/TotalSecure-IT/jcorcoran-public/refs/heads/main/Poly.PKit/Orgs/$companyName/submenu.txt"
-    try {
-        $submenuContent = Invoke-WebRequest -Uri $submenuUrl -UseBasicParsing -ErrorAction Stop |
-                          Select-Object -ExpandProperty Content
-        $lines = $submenuContent -split "\r?\n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
 
-        $submenuItems = @()
-        foreach ($line in $lines) {
-            if ($line -match "^(.*?)\s*\|\s*(.+)$") {
-                $title = $matches[1].Trim()
-                $actionPart = $matches[2].Trim()
-                if ($actionPart -match "^(?i)\s*(MANIFEST|SCRIPT|DO)\s*=\s*\((.*)\)$") {
-                    $actionType    = $matches[1].Trim()
-                    $actionContent = $matches[2].Trim()
-                    $submenuItems += [PSCustomObject]@{
-                        Title         = $title
-                        ActionType    = $actionType
-                        ActionContent = $actionContent
-                    }
+    # Merge provided settings with defaults
+    $s = $script:DefaultMenuSettings.Clone()
+    foreach ($key in $Settings.Keys) {
+        $s[$key] = $Settings[$key]
+    }
+
+    $visibleRows = [int]$s.VisibleRows
+    $totalItems = $MenuItems.Count
+    if ($totalItems -le 0) { return -1 }
+    
+    # The selection bar (marker) will be fixed at the middle of the visible area.
+    $fixedMarkerRow = $s.StartRow + [math]::Floor($visibleRows / 2)
+    
+    # The visible window is determined by an offset. Initially, set the offset such that the selected item is at the fixed position.
+    $selectedIndex = 0
+    $offset = 0
+
+    do {
+        # Adjust offset so that $selectedIndex appears at fixedMarkerRow.
+        if ($selectedIndex -lt $offset) {
+            $offset = $selectedIndex
+        } elseif ($selectedIndex -ge ($offset + $visibleRows)) {
+            $offset = $selectedIndex - $visibleRows + 1
+        }
+        # Clear screen (or at least the menu portion). For simplicity, we Clear-Host.
+        Clear-Host
+
+        # Optionally print top margin
+        for ($i = 0; $i -lt $s.TopMargin; $i++) { Write-Host "" }
+
+        # Print visible menu lines.
+        for ($i = 0; $i -lt $visibleRows; $i++) {
+            $index = ($offset + $i) % $totalItems
+            $itemText = $MenuItems[$index]
+            # Apply line spacing if requested.
+            for ($line = 0; $line -le $s.LineSpacing; $line++) {
+                if ($i + $line -eq $fixedMarkerRow) {
+                    # This is the fixed marker row.
+                    $linePrefix = $s.SelectionBarText + " "
+                    $fg = $s.SelectedForeground
+                    $bg = $s.SelectedBackground
                 }
                 else {
-                    # If format not recognized, still store title
-                    $submenuItems += [PSCustomObject]@{
-                        Title         = $title
-                        ActionType    = ""
-                        ActionContent = ""
-                    }
+                    $linePrefix = "   "
+                    $fg = $s.UnselectedForeground
+                    $bg = $s.UnselectedBackground
                 }
-            }
-        }
-        return $submenuItems
-    }
-    catch {
-        Write-MainLog "No submenu.txt found for $companyName. Error: $_"
-        return $null
-    }
-}
-
-# ------------------------------------------------------------
-# Function: Show-Submenu
-# Displays the submenu items in a scrollable list, returning the
-# selected item’s object (Title, ActionType, ActionContent)
-# or $null if none selected.
-# ------------------------------------------------------------
-function Show-Submenu {
-    param(
-        [Parameter(Mandatory=$true)][string]$companyName,
-        [Parameter(Mandatory=$true)][array]$submenuItems,
-        [Parameter(Mandatory=$true)][int]$startRow
-    )
-
-    $selectedIndex = 0
-    $exitSubmenu   = $false
-
-    # We'll figure out the maximum item length for consistent lines
-    $maxLength = ($submenuItems | ForEach-Object { $_.Title.Length } | Measure-Object -Maximum).Maximum
-    if (-not $maxLength) { $maxLength = 10 }
-
-    # Print a simple header
-    [Console]::SetCursorPosition(0, $startRow)
-    Write-Host "╓ " -NoNewline
-    Write-Host $companyName -ForegroundColor $Global:MenuHighlightForeground -BackgroundColor $Global:MenuHighlightBackground
-
-    while (-not $exitSubmenu) {
-        for ($i = 0; $i -lt $submenuItems.Count; $i++) {
-            # each row after $startRow+1
-            $row = $startRow + 1 + $i
-            [Console]::SetCursorPosition(0, $row)
-
-            if ($i -eq ($submenuItems.Count - 1)) {
-                $prefix = "╚═ "
-            }
-            else {
-                $prefix = "╠═ "
-            }
-
-            $itemText   = $submenuItems[$i].Title
-            $paddedText = $itemText.PadRight($maxLength)
-            $linePrefix = $prefix
-
-            if ($i -eq $selectedIndex) {
-                Write-Host ($linePrefix) -NoNewline
-                Write-Host ($paddedText) -ForegroundColor $Global:SubmenuHighlightForeground -BackgroundColor $Global:SubmenuHighlightBackground
-            }
-            else {
-                Write-Host ($linePrefix + $paddedText) -ForegroundColor $Global:SubmenuDefaultForeground -BackgroundColor "Black"
+                # Set cursor position (simulate text alignment)
+                [Console]::SetCursorPosition($s.StartColumn, $s.StartRow + $i + $line)
+                # Write the line with colors.
+                Write-Host ($linePrefix + $itemText.PadRight(30)) -ForegroundColor $fg -BackgroundColor $bg
+                break  # Only print one line per item; LineSpacing can be implemented by additional blank lines if needed.
             }
         }
 
+        # Optionally print bottom margin
+        for ($i = 0; $i -lt $s.BottomMargin; $i++) { Write-Host "" }
+
+        # Read key press.
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
-            'UpArrow' {
-                if ($selectedIndex -eq 0) {
-                    $selectedIndex = $submenuItems.Count - 1
-                }
-                else {
-                    $selectedIndex--
-                }
+            'UpArrow'   { 
+                $selectedIndex = ($selectedIndex - 1) % $totalItems 
+                if ($selectedIndex -lt 0) { $selectedIndex += $totalItems }
             }
             'DownArrow' {
-                if ($selectedIndex -eq ($submenuItems.Count - 1)) {
-                    $selectedIndex = 0
-                }
-                else {
-                    $selectedIndex++
-                }
+                $selectedIndex = ($selectedIndex + 1) % $totalItems
             }
-            'Enter' {
-                $exitSubmenu = $true
-            }
+            'Enter'     { return $selectedIndex }
         }
-    }
-
-    return $submenuItems[$selectedIndex]
-}
-
-# ------------------------------------------------------------
-# The three snippet-based action processors: MANIFEST, SCRIPT, DO
-# ------------------------------------------------------------
-
-function Invoke-Manifest {
-    <#
-    .SYNOPSIS
-        Processes a manifest file from a provided URL.
-    .EXAMPLE
-        Invoke-Manifest -companyName "AcmeCorp" -manifestUrl "https://example.com/manifest.txt"
-    #>
-    param(
-        [Parameter()][string]$companyName,
-        [Parameter()][string]$manifestUrl
-    )
-    Write-Host "Processing manifest for $companyName from $manifestUrl" -ForegroundColor Cyan
-    try {
-        $manifestContent = (Invoke-WebRequest -Uri $manifestUrl -UseBasicParsing -ErrorAction Stop).Content
-        Write-Host "Manifest downloaded for $companyName" -ForegroundColor Green
-    }
-    catch {
-        Write-Host "Error downloading manifest: $_" -ForegroundColor Red
-        return
-    }
-    # Parse manifest lines: each line: filename = "url"
-    $lines = $manifestContent -split "\r?\n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
-    if ($lines.Count -eq 0) {
-        Write-Host "Manifest file is empty." -ForegroundColor Red
-        return
-    }
-    # Place downloaded files in some local folder(s). Adjust to your needs:
-    $tempRoot    = (Join-Path $env:TEMP "MenuConstructor-Files")
-    $companyDir  = (Join-Path $tempRoot $companyName)
-    if (-not (Test-Path $companyDir)) {
-        New-Item -Path $companyDir -ItemType Directory | Out-Null
-        Write-MainLog "Created $companyDir for $companyName's files"
-    }
-    $downloadedFiles = @()
-    foreach ($line in $lines) {
-        if ($line -match '^(.*?)\s*=\s*"(.*?)"$') {
-            $filename  = $matches[1].Trim()
-            $fileUrl   = $matches[2].Trim()
-            $dest      = Join-Path $companyDir $filename
-            try {
-                Invoke-WebRequest -Uri $fileUrl -OutFile $dest -UseBasicParsing -ErrorAction Stop
-                Write-Host "Downloaded $filename to $dest" -ForegroundColor Green
-                Write-MainLog "Downloaded $filename to $dest"
-                $downloadedFiles += $dest
-            }
-            catch {
-                Write-Host "Error downloading $filename from $fileUrl -- $_" -ForegroundColor Red
-                Write-MainLog "Error downloading $filename from $fileUrl -- $_"
-            }
-        }
-        else {
-            Write-Host "Invalid manifest line format: $line" -ForegroundColor Yellow
-            Write-MainLog "Invalid manifest line format: $line"
-        }
-    }
-    # Optional: check if we have a .bat or .ps1 downloaded
-    $batFile = $downloadedFiles | Where-Object { $_.EndsWith(".bat") }
-    $ps1File = $downloadedFiles | Where-Object { $_.EndsWith(".ps1") }
-    if ($batFile) {
-        $prompt = Read-Host "Execute .bat file ($batFile)? (y/n)"
-        if ($prompt.ToLower() -eq "y") {
-            Write-Host "Executing $batFile..."
-            & $batFile
-        }
-        else {
-            Write-Host "Execution of $batFile cancelled."
-        }
-    }
-    elseif ($ps1File) {
-        $prompt = Read-Host "Execute .ps1 file ($ps1File)? (y/n)"
-        if ($prompt.ToLower() -eq "y") {
-            Write-Host "Executing $ps1File..."
-            & $ps1File
-        }
-        else {
-            Write-Host "Execution of $ps1File cancelled."
-        }
-    }
-    else {
-        Write-Host "No .bat or .ps1 script found in this manifest."
-    }
-}
-
-function Invoke-Script {
-    <#
-    .SYNOPSIS
-        Downloads and executes a script.
-    .EXAMPLE
-        Invoke-Script -scriptUrl "https://example.com/script.ps1"
-    #>
-    param(
-        [Parameter()][string]$scriptUrl
-    )
-    Write-Host "Downloading script from $scriptUrl..." -ForegroundColor Cyan
-    $tempScript = Join-Path $env:TEMP "tempScript.ps1"
-    try {
-        Invoke-WebRequest -Uri $scriptUrl -OutFile $tempScript -UseBasicParsing -ErrorAction Stop
-        Write-Host "Executing downloaded script..." -ForegroundColor Cyan
-        & $tempScript
-        Remove-Item $tempScript -Force
-    }
-    catch {
-        Write-Host "Error processing script: $_" -ForegroundColor Red
-    }
-}
-
-function Invoke-DO {
-    <#
-    .SYNOPSIS
-        Executes a command.
-    .EXAMPLE
-        Invoke-DO -command "Get-Process"
-    #>
-    param(
-        [Parameter()][string]$command
-    )
-    Write-Host "Executing command: $command" -ForegroundColor Cyan
-    Invoke-Expression $command
+    } while ($true)
 }
 
 function Show-MainMenuLoop {
     <#
     .SYNOPSIS
-        Displays the main menu from subfolders of the orgs folder.
+         Displays the primary menu and processes selection.
     .EXAMPLE
-        Show-MainMenuLoop -workingDir "C:\MyWorkingDir"
+         Show-MainMenuLoop -workingDir "C:\Users\isupport\Desktop\test"
     #>
     param(
         [Parameter(Mandatory=$true)][string]$workingDir
@@ -300,32 +153,27 @@ function Show-MainMenuLoop {
             return
         }
         $menuItems = $folders + "Quit"
-        $selectedIndex = 0
-        $exitMenu = $false
-        while (-not $exitMenu) {
-            for ($i = 0; $i -lt $menuItems.Count; $i++) {
-                [Console]::SetCursorPosition($script:MenuStartColumn, $script:MenuStartRow + $i)
-                $itemText = $menuItems[$i]
-                if ($i -eq $selectedIndex) {
-                    Write-Host ("-> " + $itemText + "  ") -ForegroundColor $script:MenuHighlightForeground -BackgroundColor $script:MenuHighlightBackground
-                }
-                else {
-                    Write-Host ("   " + $itemText + "  ") -ForegroundColor $script:MenuDefaultForeground -BackgroundColor "Black"
-                }
-            }
-            $key = [Console]::ReadKey($true)
-            switch ($key.Key) {
-                'UpArrow'   { $selectedIndex = if ($selectedIndex -gt 0) { $selectedIndex - 1 } else { $menuItems.Count - 1 } }
-                'DownArrow' { $selectedIndex = if ($selectedIndex -lt ($menuItems.Count-1)) { $selectedIndex + 1 } else { 0 } }
-                'Enter'     { $exitMenu = $true }
-            }
+        # Call our new scrolling menu function with customizable settings.
+        $settings = @{
+            StartRow             = 5
+            StartColumn          = 0
+            VisibleRows          = 10
+            SelectionBarText     = ">>"
+            SelectedForeground   = "Black"
+            SelectedBackground   = "Yellow"
+            UnselectedForeground = "White"
+            UnselectedBackground = "Black"
+            TopMargin            = 1
+            BottomMargin         = 1
+            FontSize             = 16
+            LineSpacing          = 0
         }
-        Clear-Host
-        $chosen = $menuItems[$selectedIndex]
-        if ($chosen -eq "Quit") {
+        $selectedIndex = Show-MainMenu -MenuItems $menuItems -Settings $settings
+        if ($selectedIndex -eq ($menuItems.Count - 1)) {
             Write-Host "Exiting menu. Goodbye!" -ForegroundColor Cyan
             break
         }
+        $chosen = $menuItems[$selectedIndex]
         $submenuItems = Get-Submenu -companyName $chosen
         if (-not $submenuItems) {
             Write-Host "No submenu found or error retrieving it for $chosen." -ForegroundColor Yellow
@@ -348,16 +196,5 @@ function Show-MainMenuLoop {
         Clear-Host
     }
 }
-
-#region Global Menu Settings (using script scope)
-$script:MenuStartRow = 5
-$script:MenuStartColumn = 0
-$script:MenuDefaultForeground = "White"
-$script:MenuHighlightForeground = "Black"
-$script:MenuHighlightBackground = "Yellow"
-$script:SubmenuDefaultForeground = "Gray"
-$script:SubmenuHighlightForeground = "Yellow"
-$script:SubmenuHighlightBackground = "Black"
-#endregion Global Menu Settings
 
 Export-ModuleMember -Function Get-Submenu, Show-Submenu, Invoke-Manifest, Invoke-Script, Invoke-DO, Show-MainMenuLoop

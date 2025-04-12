@@ -16,19 +16,17 @@ Clear-Host
 #------------------------------------------------------------------
 # Set Working Directories
 #------------------------------------------------------------------
-# Do not assign to the automatic variable $PSScriptRoot. Instead, define our own.
+# Use $MyInvocation.MyCommand.Path to determine this script’s folder.
 if ($MyInvocation.MyCommand.Path) {
     $MyScriptRoot = Split-Path $MyInvocation.MyCommand.Path -Parent
 } else {
     $MyScriptRoot = (Get-Location).Path
 }
 
-# Assume main.ps1 is in the "init" folder; working directory is its parent.
 $global:workingDir = Split-Path $MyScriptRoot -Parent
 if ([string]::IsNullOrWhiteSpace($global:workingDir)) {
     $global:workingDir = (Get-Location).Path
 }
-
 Write-Host "Working Directory set to: $global:workingDir" -ForegroundColor Green
 
 # 'init' folder is where main.ps1 resides.

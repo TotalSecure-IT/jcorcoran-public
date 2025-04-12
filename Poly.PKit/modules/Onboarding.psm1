@@ -199,7 +199,7 @@ function Install-WingetApp {
         $script:WingetAppsStatus[$AppName] = "Failed"
         return
     }
-    Write-PKitLog "Found installer URL for $AppName: $installerUrl"
+    Write-PKitLog "Found installer URL for $AppName $installerUrl"
     $filename = Split-Path $installerUrl -Leaf
     $destinationPath = Join-Path $script:UniversalInstallersDir $filename
     if (-not (Test-Path $destinationPath)) {
@@ -226,7 +226,7 @@ function Install-WingetApp {
         }
     }
     catch {
-        Write-PKitLog "Exception during installation of $AppName: $_"
+        Write-PKitLog "Exception during installation of $AppName $_"
         $script:WingetAppsStatus[$AppName] = "Failed"
     }
     Invoke-AppStatus -WingetStatus $script:WingetAppsStatus -LocalStatus @{} -ArchiveStatus @{}
@@ -301,7 +301,7 @@ function Install-LocalApp {
         }
     }
     catch {
-        Write-PKitLog "Exception during installation of $AppName: $_"
+        Write-PKitLog "Exception during installation of $AppName $_"
         $script:LocalAppsStatus[$AppName] = "Failed"
     }
     Invoke-AppStatus -WingetStatus @{} -LocalStatus $script:LocalAppsStatus -ArchiveStatus @{}
@@ -400,7 +400,7 @@ function Invoke-Archive {
         }
     }
     catch {
-        Write-PKitLog "Exception extracting $ArchivePath: $_"
+        Write-PKitLog "Exception extracting $ArchivePath $_"
         $script:ArchivesStatus[$ArchivePath] = "Failed"
     }
     Invoke-AppStatus -WingetStatus @{} -LocalStatus @{} -ArchiveStatus $script:ArchivesStatus

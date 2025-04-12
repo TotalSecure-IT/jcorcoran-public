@@ -18,7 +18,7 @@ $script:MenuFilesDiscovered     = 0
 $script:StatsTableLine          = $null
 #endregion Script-Scope Variables
 
-function Refresh-LiveStat {
+function Invoke-LiveStat {
     <#
     .SYNOPSIS
         Updates the live console stats.
@@ -99,7 +99,7 @@ function Update-OrgFolder {
     )
     if (-not (Test-Path $orgPath)) {
         $script:OrgFoldersDiscovered++
-        Refresh-LiveStat
+        Invoke-LiveStat
         New-Item -ItemType Directory -Path $orgPath | Out-Null
         if ($primaryLogFilePath) {
             Write-Log "Created org folder: $orgPath" -logFilePath $primaryLogFilePath
@@ -107,7 +107,7 @@ function Update-OrgFolder {
     }
     else {
         $script:OrgFoldersSkipped++
-        Refresh-LiveStat
+        Invoke-LiveStat
     }
 }
 
@@ -140,7 +140,7 @@ function Update-OrgFolders {
 
     Write-Host "Using orgsFolderSha='$orgsFolderSha' to replicate subfolders..."
     $script:StatsTableLine = $Host.UI.RawUI.CursorPosition.Y + 1
-    Refresh-LiveStat
+    Invoke-LiveStat
 
     $orgsItems = Get-OrgFolderTree -owner $owner -repo $repo -token $token -orgsFolderSha $orgsFolderSha
     if (-not $orgsItems) {
@@ -164,7 +164,7 @@ function Update-OrgFolders {
                 try {
                     Invoke-WebRequest -Uri $rawSubmenuUrl -OutFile $localSubmenu -UseBasicParsing -ErrorAction Stop
                     $script:MenuFilesDiscovered++
-                    Refresh-LiveStat
+                    Invoke-LiveStat
                     if ($primaryLogFilePath) {
                         Write-Log "Downloaded submenu.txt for $($item.path)" -logFilePath $primaryLogFilePath
                     }
@@ -177,4 +177,4 @@ function Update-OrgFolders {
     }
 }
 
-Export-ModuleMember -Function Update-OrgFolders, Get-OrgFolderTree, Refresh-LiveStat
+Export-ModuleMember -Function Update-OrgFolders, Get-OrgFolderTree, Invoke-LiveStat
